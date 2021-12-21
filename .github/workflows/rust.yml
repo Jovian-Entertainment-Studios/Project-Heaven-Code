@@ -17,4 +17,4 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Build
-      run: sudo apt-get update -y && sudo apt-get install -y libudev-dev && sudo apt-get install alsa && cd Project\ Heaven/ && cargo build --release
+      run: sudo apt-get update -y && sudo apt-get install -y libudev-dev && cd Project\ Heaven/ && cargo build --release
