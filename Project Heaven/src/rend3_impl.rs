@@ -17,6 +17,8 @@ struct EguiExampleData {
 #[derive(Default)]
 pub struct EguiExample {
     data: Option<EguiExampleData>,
+
+    menu_toggle: bool,
 }
 impl rend3_framework::App for EguiExample {
     const DEFAULT_SAMPLE_COUNT: rend3::types::SampleCount = rend3::types::SampleCount::One;
@@ -145,25 +147,34 @@ impl rend3_framework::App for EguiExample {
 
                 // Insert egui commands here
                 let ctx = data.platform.context();
-                egui::Window::new("Change color")
-                    .resizable(true)
-                    .show(&ctx, |ui| {
-                        ui.label("Change the color of the cube");
-                        if ui
-                            .color_edit_button_rgba_unmultiplied(&mut data.color)
-                            .changed()
-                        {
-                            renderer.update_material(
-                                &data.material_handle.clone(),
-                                rend3_routine::material::PbrMaterial {
-                                    albedo: rend3_routine::material::AlbedoComponent::Value(
-                                        glam::Vec4::from(data.color),
-                                    ),
-                                    ..rend3_routine::material::PbrMaterial::default()
-                                },
-                            );
-                        }
-                    });
+
+                egui::TopBottomPanel::top("Taskbar").show(&ctx, |ui| {
+                    if ui.add(egui::Button::new("Menu")).clicked() {
+                        self.menu_toggle = !self.menu_toggle;
+                    }
+                    if self.menu_toggle == true {
+                        egui::Window::new("Change color")
+                            .resizable(false)
+                            .anchor(egui::Align2::LEFT_TOP, [3.0, 30.0])
+                            .show(&ctx, |ui| {
+                                ui.label("Change the color of the cube");
+                                if ui
+                                    .color_edit_button_rgba_unmultiplied(&mut data.color)
+                                    .changed()
+                                {
+                                    renderer.update_material(
+                                        &data.material_handle.clone(),
+                                        rend3_routine::material::PbrMaterial {
+                                            albedo: rend3_routine::material::AlbedoComponent::Value(
+                                                glam::Vec4::from(data.color),
+                                            ),
+                                            ..rend3_routine::material::PbrMaterial::default()
+                                        },
+                                    );
+                                }
+                            });
+                    }
+                });
 
                 // End the UI frame. Now let's draw the UI with our Backend, we could also handle the output here
                 let (_output, paint_commands) = data.platform.end_frame(Some(window));
