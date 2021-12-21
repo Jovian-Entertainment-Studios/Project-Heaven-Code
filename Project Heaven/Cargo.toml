@@ -1,5 +1,5 @@
 [package]
-name = "the-bobiverse"
+name = "project-heaven"
 version = "0.0.2"
 authors = ["Albin Sjögren <albin@sjoegren.se>"]
 edition = "2021"
@@ -11,12 +11,14 @@ categories = ["games"]
 rodio = "0.14.0"
 egui = "0.15.0"
 eframe = "0.15.0"
+instant = { version = "0.1", features = ["wasm-bindgen"] }
 serde = "1.0.130"
 image = "0.23.14"
 egui_winit_platform = { version = "0.11.0", git = "https://github.com/cwfitzgerald/egui_winit_platform.git", rev = "eaef13fd5d70bb5b3251424711012ceedb71994b" }
 rend3 = { git = "https://github.com/BVE-Reborn/rend3"}
-rend3-pbr = { git = "https://github.com/BVE-Reborn/rend3"}
 rend3-egui = { git = "https://github.com/BVE-Reborn/rend3"}
+rend3-framework = { git = "https://github.com/BVE-Reborn/rend3"}
+rend3-routine = { git = "https://github.com/BVE-Reborn/rend3"}
 winit = "0.25.0"
 glam = "0.20.0"
 pollster = "0.2.4"
@@ -30,7 +32,7 @@ ndarray-glm = { version = "0.0.10", features = ["openblas-system"] }
 input-actions = "0.1.0"
 
 [package.metadata.bundle]
-name = "The Bobiverse"
+name = "Project Heaven"
 resources = ["src/data", "src/data/music/Bob_Frame-Rate.mp3"]
 copyright = "Copyright (c) Albin Sjögren 2021. All rights reserved."
 icon = ["src/data/images/GUPPI.png"]
