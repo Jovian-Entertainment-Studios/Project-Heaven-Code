@@ -5,7 +5,7 @@ mod mesh_generator;
 use gltf_loading::load_gltf;
 use mesh_generator::create_mesh;
 
-struct EguiExampleData {
+struct RenderingData {
     _object_handle: rend3::types::ObjectHandle,
     material_handle: rend3::types::MaterialHandle,
     _directional_handle: rend3::types::DirectionalLightHandle,
@@ -17,13 +17,13 @@ struct EguiExampleData {
 }
 
 #[derive(Default)]
-pub struct EguiExample {
-    data: Option<EguiExampleData>,
+pub struct Rendering {
+    data: Option<RenderingData>,
 
     menu_toggle: bool,
     gltf_cube_toggle: bool,
 }
-impl rend3_framework::App for EguiExample {
+impl rend3_framework::App for Rendering {
     const DEFAULT_SAMPLE_COUNT: rend3::types::SampleCount = rend3::types::SampleCount::One;
 
     fn setup(
@@ -116,7 +116,7 @@ impl rend3_framework::App for EguiExample {
         let start_time = instant::Instant::now();
         let color: [f32; 4] = [0.0, 0.5, 0.5, 1.0];
 
-        self.data = Some(EguiExampleData {
+        self.data = Some(RenderingData {
             _object_handle,
             material_handle,
             _directional_handle,

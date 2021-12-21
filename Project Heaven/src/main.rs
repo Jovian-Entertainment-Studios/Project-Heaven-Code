@@ -1,13 +1,17 @@
 mod rend3_impl;
-use rend3_impl::EguiExample;
+use rend3_impl::Rendering;
+
+use winit::window::Fullscreen;
 
 fn main() {
-    let app = EguiExample::default();
+    let app = Rendering::default();
     rend3_framework::start(
         app,
         winit::window::WindowBuilder::new()
-            .with_title("egui")
-            .with_maximized(true),
+            .with_title("Project Heaven")
+            .with_maximized(true)
+            .with_fullscreen(Some(Fullscreen::Borderless(None)))
+            .with_decorations(false),
     )
 }
 
