@@ -5,3 +5,10 @@
 Related projects:
 
 https://github.com/AlbinSjoegren/SPV
+
+
+Required packages (Ubuntu):
+
+```
+libudev-dev
+```
