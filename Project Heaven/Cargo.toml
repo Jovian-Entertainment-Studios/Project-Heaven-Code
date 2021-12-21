@@ -29,6 +29,7 @@ serde_derive = "1.0.130"
 ndarray = { version = "0.15", features = ["blas"]}
 ndarray-glm = { version = "0.0.10", features = ["openblas-system"] }
 input-actions = "0.1.0"
+gltf = { version = "0.16", default-features = false, features = ["import", "utils"] }
 
 [package.metadata.bundle]
 name = "Project Heaven"

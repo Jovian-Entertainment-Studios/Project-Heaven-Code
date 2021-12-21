@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
+mod gltf_loading;
 mod mesh_generator;
+use gltf_loading::load_gltf;
 use mesh_generator::create_mesh;
 
 struct EguiExampleData {
@@ -19,6 +21,7 @@ pub struct EguiExample {
     data: Option<EguiExampleData>,
 
     menu_toggle: bool,
+    gltf_cube_toggle: bool,
 }
 impl rend3_framework::App for EguiExample {
     const DEFAULT_SAMPLE_COUNT: rend3::types::SampleCount = rend3::types::SampleCount::One;
@@ -157,6 +160,9 @@ impl rend3_framework::App for EguiExample {
                             .resizable(false)
                             .anchor(egui::Align2::LEFT_TOP, [3.0, 30.0])
                             .show(&ctx, |ui| {
+                                if ui.add(egui::Button::new("GLTF/Cube")).clicked() {
+                                    self.gltf_cube_toggle = !self.gltf_cube_toggle;
+                                }
                                 ui.label("Change the color of the cube");
                                 if ui
                                     .color_edit_button_rgba_unmultiplied(&mut data.color)
