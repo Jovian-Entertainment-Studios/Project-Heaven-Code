@@ -1,213 +1,5 @@
-use std::sync::Arc;
-
-struct EguiExampleData {
-    _object_handle: rend3::types::ObjectHandle,
-    material_handle: rend3::types::MaterialHandle,
-    _directional_handle: rend3::types::DirectionalLightHandle,
-
-    egui_routine: rend3_egui::EguiRenderRoutine,
-    platform: egui_winit_platform::Platform,
-    start_time: instant::Instant,
-    color: [f32; 4],
-}
-
-#[derive(Default)]
-struct EguiExample {
-    data: Option<EguiExampleData>,
-}
-impl rend3_framework::App for EguiExample {
-    const DEFAULT_SAMPLE_COUNT: rend3::types::SampleCount = rend3::types::SampleCount::One;
-
-    fn setup(
-        &mut self,
-        window: &winit::window::Window,
-        renderer: &Arc<rend3::Renderer>,
-        _routines: &Arc<rend3_framework::DefaultRoutines>,
-        _surface: &Arc<rend3::types::Surface>,
-        surface_format: rend3::types::TextureFormat,
-    ) {
-        let window_size = window.inner_size();
-
-        // Create the egui render routine
-        let egui_routine = rend3_egui::EguiRenderRoutine::new(
-            renderer,
-            surface_format,
-            rend3::types::SampleCount::One,
-            window_size.width,
-            window_size.height,
-            window.scale_factor() as f32,
-        );
-
-        // Create mesh and calculate smooth normals based on vertices
-        let mesh = create_mesh();
-
-        // Add mesh to renderer's world.
-        //
-        // All handles are refcounted, so we only need to hang onto the handle until we make an object.
-        let mesh_handle = renderer.add_mesh(mesh);
-
-        // Add PBR material with all defaults except a single color.
-        let material = rend3_routine::material::PbrMaterial {
-            albedo: rend3_routine::material::AlbedoComponent::Value(glam::Vec4::new(0.0, 0.5, 0.5, 1.0)),
-            ..rend3_routine::material::PbrMaterial::default()
-        };
-        let material_handle = renderer.add_material(material);
-
-        // Combine the mesh and the material with a location to give an object.
-        let object = rend3::types::Object {
-            mesh: mesh_handle,
-            material: material_handle.clone(),
-            transform: glam::Mat4::IDENTITY,
-        };
-
-        // Creating an object will hold onto both the mesh and the material
-        // even if they are deleted.
-        //
-        // We need to keep the object handle alive.
-        let _object_handle = renderer.add_object(object);
-
-        let camera_pitch = std::f32::consts::FRAC_PI_4;
-        let camera_yaw = -std::f32::consts::FRAC_PI_4;
-        // These values may seem arbitrary, but they center the camera on the cube in the scene
-        let camera_location = glam::Vec3A::new(5.0, 7.5, -5.0);
-        let view = glam::Mat4::from_euler(glam::EulerRot::XYZ, -camera_pitch, -camera_yaw, 0.0);
-        let view = view * glam::Mat4::from_translation((-camera_location).into());
-
-        // Set camera location data
-        renderer.set_camera_data(rend3::types::Camera {
-            projection: rend3::types::CameraProjection::Perspective { vfov: 60.0, near: 0.1 },
-            view,
-        });
-
-        // Create a single directional light
-        //
-        // We need to keep the directional light handle alive.
-        let _directional_handle = renderer.add_directional_light(rend3::types::DirectionalLight {
-            color: glam::Vec3::ONE,
-            intensity: 10.0,
-            // Direction will be normalized
-            direction: glam::Vec3::new(-1.0, -4.0, 2.0),
-            distance: 400.0,
-        });
-
-        // Create the winit/egui integration, which manages our egui context for us.
-        let platform = egui_winit_platform::Platform::new(egui_winit_platform::PlatformDescriptor {
-            physical_width: window_size.width as u32,
-            physical_height: window_size.height as u32,
-            scale_factor: window.scale_factor(),
-            font_definitions: egui::FontDefinitions::default(),
-            style: Default::default(),
-        });
-
-        let start_time = instant::Instant::now();
-        let color: [f32; 4] = [0.0, 0.5, 0.5, 1.0];
-
-        self.data = Some(EguiExampleData {
-            _object_handle,
-            material_handle,
-            _directional_handle,
-
-            egui_routine,
-            platform,
-            start_time,
-            color,
-        })
-    }
-
-    fn handle_event(
-        &mut self,
-        window: &winit::window::Window,
-        renderer: &Arc<rend3::Renderer>,
-        routines: &Arc<rend3_framework::DefaultRoutines>,
-        surface: &Arc<rend3::types::Surface>,
-        event: rend3_framework::Event<'_, ()>,
-        control_flow: impl FnOnce(winit::event_loop::ControlFlow),
-    ) {
-        let data = self.data.as_mut().unwrap();
-
-        // Pass the winit events to the platform integration.
-        data.platform.handle_event(&event);
-
-        match event {
-            rend3_framework::Event::RedrawRequested(..) => {
-                data.platform.update_time(data.start_time.elapsed().as_secs_f64());
-                data.platform.begin_frame();
-
-                // Insert egui commands here
-                let ctx = data.platform.context();
-                egui::Window::new("Change color").resizable(true).show(&ctx, |ui| {
-                    ui.label("Change the color of the cube");
-                    if ui.color_edit_button_rgba_unmultiplied(&mut data.color).changed() {
-                        renderer.update_material(
-                            &data.material_handle.clone(),
-                            rend3_routine::material::PbrMaterial {
-                                albedo: rend3_routine::material::AlbedoComponent::Value(glam::Vec4::from(data.color)),
-                                ..rend3_routine::material::PbrMaterial::default()
-                            },
-                        );
-                    }
-                });
-
-                // End the UI frame. Now let's draw the UI with our Backend, we could also handle the output here
-                let (_output, paint_commands) = data.platform.end_frame(Some(window));
-                let paint_jobs = data.platform.context().tessellate(paint_commands);
-
-                let input = rend3_egui::Input {
-                    clipped_meshes: &paint_jobs,
-                    context: data.platform.context(),
-                };
-
-                // Get a frame
-                let frame = rend3::util::output::OutputFrame::Surface {
-                    surface: Arc::clone(surface),
-                };
-
-                // Ready up the renderer
-                let (cmd_bufs, ready) = renderer.ready();
-
-                // Lock the routines
-                let pbr_routine = rend3_framework::lock(&routines.pbr);
-                let tonemapping_routine = rend3_framework::lock(&routines.tonemapping);
-
-                // Build a rendergraph
-                let mut graph = rend3::RenderGraph::new();
-
-                // Add the default rendergraph without a skybox
-                rend3_routine::add_default_rendergraph(
-                    &mut graph,
-                    &ready,
-                    &pbr_routine,
-                    None,
-                    &tonemapping_routine,
-                    Self::DEFAULT_SAMPLE_COUNT,
-                );
-
-                // Add egui on top of all the other passes
-                let surface = graph.add_surface_texture();
-                data.egui_routine.add_to_graph(&mut graph, input, surface);
-
-                // Dispatch a render using the built up rendergraph!
-                graph.execute(renderer, frame, cmd_bufs, &ready);
-
-                control_flow(winit::event_loop::ControlFlow::Poll);
-            }
-            rend3_framework::Event::MainEventsCleared => {
-                window.request_redraw();
-            }
-            rend3_framework::Event::WindowEvent { event, .. } => match event {
-                winit::event::WindowEvent::Resized(size) => {
-                    data.egui_routine
-                        .resize(size.width, size.height, window.scale_factor() as f32);
-                }
-                winit::event::WindowEvent::CloseRequested => {
-                    control_flow(winit::event_loop::ControlFlow::Exit);
-                }
-                _ => {}
-            },
-            _ => {}
-        }
-    }
-}
+mod rend3_impl;
+use rend3_impl::EguiExample;
 
 fn main() {
     let app = EguiExample::default();
@@ -219,58 +11,6 @@ fn main() {
     )
 }
 
-fn vertex(pos: [f32; 3]) -> glam::Vec3 {
-    glam::Vec3::from(pos)
-}
-
-fn create_mesh() -> rend3::types::Mesh {
-    let vertex_positions = [
-        // far side (0.0, 0.0, 1.0)
-        vertex([-1.0, -1.0, 1.0]),
-        vertex([1.0, -1.0, 1.0]),
-        vertex([1.0, 1.0, 1.0]),
-        vertex([-1.0, 1.0, 1.0]),
-        // near side (0.0, 0.0, -1.0)
-        vertex([-1.0, 1.0, -1.0]),
-        vertex([1.0, 1.0, -1.0]),
-        vertex([1.0, -1.0, -1.0]),
-        vertex([-1.0, -1.0, -1.0]),
-        // right side (1.0, 0.0, 0.0)
-        vertex([1.0, -1.0, -1.0]),
-        vertex([1.0, 1.0, -1.0]),
-        vertex([1.0, 1.0, 1.0]),
-        vertex([1.0, -1.0, 1.0]),
-        // left side (-1.0, 0.0, 0.0)
-        vertex([-1.0, -1.0, 1.0]),
-        vertex([-1.0, 1.0, 1.0]),
-        vertex([-1.0, 1.0, -1.0]),
-        vertex([-1.0, -1.0, -1.0]),
-        // top (0.0, 1.0, 0.0)
-        vertex([1.0, 1.0, -1.0]),
-        vertex([-1.0, 1.0, -1.0]),
-        vertex([-1.0, 1.0, 1.0]),
-        vertex([1.0, 1.0, 1.0]),
-        // bottom (0.0, -1.0, 0.0)
-        vertex([1.0, -1.0, 1.0]),
-        vertex([-1.0, -1.0, 1.0]),
-        vertex([-1.0, -1.0, -1.0]),
-        vertex([1.0, -1.0, -1.0]),
-    ];
-
-    let index_data: &[u32] = &[
-        0, 1, 2, 2, 3, 0, // far
-        4, 5, 6, 6, 7, 4, // near
-        8, 9, 10, 10, 11, 8, // right
-        12, 13, 14, 14, 15, 12, // left
-        16, 17, 18, 18, 19, 16, // top
-        20, 21, 22, 22, 23, 20, // bottom
-    ];
-
-    rend3::types::MeshBuilder::new(vertex_positions.to_vec())
-        .with_indices(index_data.to_vec())
-        .build()
-        .unwrap()
-}
 /*
 use crate::epaint::TextureId;
 use eframe::{egui, epi};
@@ -340,7 +80,7 @@ fn main() {
             .tex_allocator()
             .alloc_srgba_premultiplied(size_bkg, &pixels_bkg);
 
-        
+
 
         let image_data_placeholder = include_bytes!("data/images/placeholder.png");
         let image_placeholder =
@@ -358,7 +98,7 @@ fn main() {
             .tex_allocator()
             .alloc_srgba_premultiplied(size_placeholder, &pixels_placeholder);
 
-        
+
 
         let image_data_guppi = include_bytes!("data/images/GUPPI.png");
         let image_guppi = image::load_from_memory(image_data_guppi).expect("Failed to load image");
@@ -375,7 +115,6 @@ fn main() {
             .tex_allocator()
             .alloc_srgba_premultiplied(size_guppi, &pixels_guppi);
 
-        
         let image_data_galaxy_placeholder = include_bytes!("data/images/Milky_Way_Galaxy.png");
         let image_galaxy_placeholder =
             image::load_from_memory(image_data_galaxy_placeholder).expect("Failed to load image");
@@ -392,7 +131,7 @@ fn main() {
             .tex_allocator()
             .alloc_srgba_premultiplied(size_galaxy_placeholder, &pixels_galaxy_placeholder);
 
-        
+
 
         let image_data_system_placeholder = include_bytes!("data/images/SolarSystem.png");
         let image_system_placeholder =
@@ -409,7 +148,6 @@ fn main() {
         self.placeholder_system_starchart_img = frame
             .tex_allocator()
             .alloc_srgba_premultiplied(size_system_placeholder, &pixels_system_placeholder);
-        
         let image_data_research_placeholder = include_bytes!("data/images/Research.png");
         let image_research_placeholder =
             image::load_from_memory(image_data_research_placeholder).expect("Failed to load image");
@@ -425,7 +163,6 @@ fn main() {
         self.placeholder_research_img = frame
             .tex_allocator()
             .alloc_srgba_premultiplied(size_research_placeholder, &pixels_research_placeholder);
-        
         let image_data_comms_placeholder = include_bytes!("data/images/Communicating-5.png");
         let image_comms_placeholder =
             image::load_from_memory(image_data_comms_placeholder).expect("Failed to load image");
@@ -441,7 +178,7 @@ fn main() {
         self.placeholder_comms_img = frame
             .tex_allocator()
             .alloc_srgba_premultiplied(size_comms_placeholder, &pixels_comms_placeholder);
-        
+
 
     // Get a output stream handle to the default physical sound device
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
@@ -589,7 +326,6 @@ fn main() {
 
                 // Insert egui commands here
                 let ctx = platform.context();
-                
                 egui::TopBottomPanel::top("Task Bar").show(&ctx, |ui| {
                     egui::containers::Frame {
                         margin: Vec2::new(0., 0.),
@@ -600,7 +336,6 @@ fn main() {
                     }
                     .show(ui, |ui| {});
                 });
-                
                 egui::TopBottomPanel::bottom("App Dock").show(&ctx, |ui| {});
 
                 let mut input_sys = System::new();
@@ -663,33 +398,23 @@ fn main() {
                     // though it is equivalent to `mark_action_set_enabled` since there is only 1 user in this example.
                     .enable_action_set_for_all(ActionSetId::default());
 
-                
-                
+
                     egui::Window::new("EXIT?")
                         .resizable(false)
                         .anchor(egui::Align2::CENTER_CENTER, (0f32, 0f32))
                         .show(&ctx, |ui| {
                             ui.vertical(|ui| {
-                                
                                 ui.label("Do you want to exit?");
-                                
                                 ui.horizontal(|ui| {
-                                    
                                     if ui.add(egui::Button::new("Yes")).clicked() {
-                                        
                                         //frame.quit();
-                                        
                                     }
-                                    
                                     if ui.add(egui::Button::new("No")).clicked() {
-                                        
                                         //self.exitmenu = false;
-                                        
                                     }
                                 });
                             });
                         });
-                    
                     egui::Window::new("Feedback:").anchor(egui::Align2::CENTER_TOP, (0f32, 50f32)).resizable(false).show(ctx, |ui| {
                             ui.add(
                                 egui::Label::new(format!(
@@ -697,24 +422,16 @@ fn main() {
                                     ))
                                 .heading(),
                             );
-                            
                             ui.add(egui::Label::new(format!(
-                                
                                 "If you want to leave any comment please feel free to do so below"
-                                
                             )));
-                            
                             ui.separator();
-                            
                             let feedback = ui.add_sized(
                                 [300.0, 150.0],
                                 egui::TextEdit::multiline(&mut self.feedback_string),
                             );
-                            
                             ui.separator();
-                            
                             ui.horizontal(|ui| {
-                                
                                 //Sad
                                 if ui
                                     .add(egui::ImageButton::new(
@@ -722,7 +439,6 @@ fn main() {
                                         egui::Vec2::splat(28.0),
                                     ))
                                     .clicked()
-                                
                                 {
                                     self.sad = true;
                                     self.medium_sad = false;
@@ -730,7 +446,6 @@ fn main() {
                                     self.medium_happy = false;
                                     self.happy = false;
                                 }
-                                
                                 //Medium sad
                                 if ui
                                     .add(egui::ImageButton::new(
@@ -738,7 +453,6 @@ fn main() {
                                         egui::Vec2::splat(28.0),
                                     ))
                                     .clicked()
-                                
                                 {
                                     self.sad = false;
                                     self.medium_sad = true;
@@ -746,7 +460,6 @@ fn main() {
                                     self.medium_happy = false;
                                     self.happy = false;
                                 }
-                                
                                 //Medium
                                 if ui
                                     .add(egui::ImageButton::new(
@@ -754,7 +467,6 @@ fn main() {
                                         egui::Vec2::splat(28.0),
                                     ))
                                     .clicked()
-                                
                                 {
                                     self.sad = false;
                                     self.medium_sad = false;
@@ -762,7 +474,6 @@ fn main() {
                                     self.medium_happy = false;
                                     self.happy = false;
                                 }
-                                
                                 //Medium happy
                                 if ui
                                     .add(egui::ImageButton::new(
@@ -770,7 +481,6 @@ fn main() {
                                         egui::Vec2::splat(28.0),
                                     ))
                                     .clicked()
-                                
                                 {
                                     self.sad = false;
                                     self.medium_sad = false;
@@ -778,7 +488,6 @@ fn main() {
                                     self.medium_happy = true;
                                     self.happy = false;
                                 }
-                                
                                 //Happy
                                 if ui
                                     .add(egui::ImageButton::new(
@@ -786,7 +495,6 @@ fn main() {
                                         egui::Vec2::splat(28.0),
                                     ))
                                     .clicked()
-                                
                                 {
                                     self.sad = false;
                                     self.medium_sad = false;
@@ -795,34 +503,24 @@ fn main() {
                                     self.happy = true;
                                 }
                             });
-                            
                             ui.separator();
-                            
                             ui.horizontal(|ui| {
-                                
                                 if ui.add(egui::Button::new("Submit")).clicked() {
-                                    
                                     //Send feedback string & mood & position/state data
-                                    
                                 }
-                                
                                 if ui.add(egui::Button::new("Cancel")).clicked() {
-                                    
                                     drop(feedback);
-                                    
                                     self.sad = false;
                                     self.medium_sad = false;
                                     self.medium = false;
                                     self.medium_happy = false;
                                     self.happy = false;
                                     self.feedbackmenu = false;
-                                    
                                 }
-                                
                             });
                         });
                     }
-                
+
 
                 // End the UI frame. Now let's draw the UI with our Backend, we could also handle the output here
                 let (_output, paint_commands) = platform.end_frame(Some(&window));
@@ -904,24 +602,18 @@ fn main() {
         }
     });
     /*
-    
     let app = AppSource::default();
-    
     let options = eframe::NativeOptions {
-        
         always_on_top: false,
         decorated: true,
         drag_and_drop_support: false,
         initial_window_size: Some(egui::vec2(1920.0, 1080.0)),
         resizable: true,
         transparent: false,
-        
         ..Default::default()
     };
-    
     eframe::run_native(Box::new(app), options);
     */
-    
 }
 
 fn vertex(pos: [f32; 3]) -> glam::Vec3 {
@@ -977,125 +669,76 @@ fn create_mesh() -> rend3::types::Mesh {
 }
 /*
 impl AppSource {
-    
     fn popup_apps(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>, ui: &mut egui::Ui) {
-        
-        
-        if ui.input().key_pressed(egui::Key::Z) {
-            
-            self.feedbackmenu = true;
-            
-        }
-        
 
-        
+        if ui.input().key_pressed(egui::Key::Z) {
+            self.feedbackmenu = true;
+        }
+
+
         let guppi_window =
             egui::Window::new("Terminal").anchor(egui::Align2::LEFT_TOP, (10f32, 50f32));
-        
         if self.guppi_terminal.open || ctx.memory().everything_is_visible() {
-            
             guppi_window.show(ctx, |ui| {
-                
                 self.guppi_terminal.ui(ui, frame);
-                
             });
         }
-        
         let todo_window =
             egui::Window::new("Todo").anchor(egui::Align2::RIGHT_TOP, (-10f32, 50f32));
-        
         if self.todo.open || ctx.memory().everything_is_visible() {
-            
             todo_window.show(ctx, |ui| {
-                
                 self.todo.ui(ui, frame);
-                
             });
         }
-        
         let comms_window =
             egui::Window::new("Comms").anchor(egui::Align2::RIGHT_CENTER, (-10f32, -300f32));
-        
         if self.comms.open || ctx.memory().everything_is_visible() {
-            
             comms_window.show(ctx, |ui| {
-                
                 self.comms.ui(ui, frame);
-                
             });
         }
-        
     }
-    
     fn universe_starchart_windows(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
-        
         let selected_star_window =
             egui::Window::new("Star").anchor(egui::Align2::LEFT_BOTTOM, (10f32, -50f32));
-        
         if self.universe_starchart.active || ctx.memory().everything_is_visible() {
-            
             selected_star_window.show(ctx, |ui| {
-                
                 self.universe_starchart.ui(ui, frame);
-                
             });
         }
-        
     }
-    
     fn system_starchart_windows(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
-        
         let selected_object_window =
             egui::Window::new("Object").anchor(egui::Align2::LEFT_BOTTOM, (10f32, -50f32));
-        
         if self.system_starchart.active || ctx.memory().everything_is_visible() {
-            
             selected_object_window.show(ctx, |ui| {
-                
                 self.system_starchart.ui(ui, frame);
-                
             });
         }
-        
     }
-    
     fn research_windows(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
-        
         let selected_tech_window =
             egui::Window::new("Tech").anchor(egui::Align2::LEFT_BOTTOM, (10f32, -50f32));
-        
         if self.research.active || ctx.memory().everything_is_visible() {
-            
             selected_tech_window.show(ctx, |ui| {
-                
                 self.research.ui(ui, frame);
-                
             });
         }
-        
     }
-    
     fn advanced_comms_windows(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
-        
         let selected_transmission_window =
             egui::Window::new("Comms").anchor(egui::Align2::LEFT_BOTTOM, (10f32, -50f32));
-        
         if self.advanced_comms.active || ctx.memory().everything_is_visible() {
-            
             selected_transmission_window.show(ctx, |ui| {
-                
                 self.advanced_comms.ui(ui, frame);
-                
             });
         }
-        
     }
 }
 */
 
 #[derive(Serialize, Deserialize)]
 struct ColorPallet {
-    
     eerie_black: String,
     eerie_black_r: u8,
     eerie_black_g: u8,
@@ -1116,7 +759,6 @@ struct ColorPallet {
     rich_black_fogra_29_r: u8,
     rich_black_fogra_29_g: u8,
     rich_black_fogra_29_b: u8,
-    
     red_orange_color_wheel: String,
     red_orange_color_wheel_r: u8,
     red_orange_color_wheel_g: u8,
@@ -1145,7 +787,6 @@ struct ColorPallet {
     copper_red_r: u8,
     copper_red_g: u8,
     copper_red_b: u8,
-    
     pacific_blue: String,
     pacific_blue_r: u8,
     pacific_blue_g: u8,
@@ -1174,7 +815,6 @@ struct ColorPallet {
     indigo_dye_r: u8,
     indigo_dye_g: u8,
     indigo_dye_b: u8,
-    
     davys_grey: String,
     davys_grey_r: u8,
     davys_grey_g: u8,
@@ -1195,7 +835,6 @@ struct ColorPallet {
     light_grey_r: u8,
     light_grey_g: u8,
     light_grey_b: u8,
-    
     platinum: String,
     platinum_r: u8,
     platinum_g: u8,
@@ -1225,7 +864,6 @@ struct ColorPallet {
 #[derive(Default)]
 
 pub struct AppSource {
-    
     guppi_terminal: guppi_terminal::GuppiTermial,
     todo: todo::TodoTermial,
     comms: comms::CommsTermial,
@@ -1233,7 +871,6 @@ pub struct AppSource {
     system_starchart: system_starchart::SystemStarcharct,
     advanced_comms: advanced_comms::AdvancedCommsTerminal,
     research: research::ResearchTerminal,
-    
     /*
     bkg_img: TextureId,
     guppi_img: TextureId,
@@ -1243,152 +880,114 @@ pub struct AppSource {
     placeholder_research_img: TextureId,
     placeholder_comms_img: TextureId,
     */
-    
     exitmenu: bool,
     feedbackmenu: bool,
-    
     feedback_string: String,
-    
     sad: bool,
     medium_sad: bool,
     medium: bool,
     medium_happy: bool,
     happy: bool,
-    
 }
 /*
 impl epi::App for AppSource {
-    
     fn name(&self) -> &str {
         "The Bobiverse"
     }
-    
     #[allow(unused_variables)]
-    
     fn setup(
         &mut self,
         ctx: &egui::CtxRef,
         frame: &mut epi::Frame<'_>,
         storage: Option<&dyn epi::Storage>,
     ) {
-        
         #[cfg(feature = "persistence")]
         if let Some(storage) = storage {
             *self = epi::get_value(storage, epi::APP_KEY).unwrap_or_default()
         }
-        
         let loaded_file = include_str!("data/color/color.json");
         let color_pallet: ColorPallet = serde_json::from_str(loaded_file).unwrap();
-        
         let mut style: egui::Style = (*ctx.style()).clone();
-        
         style.visuals.extreme_bg_color = egui::Color32::from_rgb(
             color_pallet.baby_powder_r,
             color_pallet.baby_powder_g,
             color_pallet.baby_powder_b,
         );
-        
         style.visuals.faint_bg_color = egui::Color32::from_rgb(
             color_pallet.sage_r,
             color_pallet.sage_g,
             color_pallet.sage_b,
         );
-        
         style.visuals.code_bg_color = egui::Color32::from_rgb(
             color_pallet.platinum_r,
             color_pallet.platinum_g,
             color_pallet.platinum_b,
         );
-        
         style.visuals.hyperlink_color = egui::Color32::from_rgb(
             color_pallet.copper_red_r,
             color_pallet.copper_red_g,
             color_pallet.copper_red_b,
         );
-        
         style.visuals.override_text_color = Some(egui::Color32::from_rgb(
             color_pallet.eerie_black_r,
             color_pallet.eerie_black_g,
             color_pallet.eerie_black_b,
         ));
-        
         style.visuals.window_corner_radius = 0.1;
-        
         style.visuals.button_frame = false;
-        
         style.visuals.collapsing_header_frame = true;
-        
         style.visuals.widgets.noninteractive.bg_fill = egui::Color32::from_rgb(
             color_pallet.platinum_r,
             color_pallet.platinum_g,
             color_pallet.platinum_b,
         );
-        
         style.visuals.widgets.inactive.bg_fill = egui::Color32::TRANSPARENT;
-        
         style.visuals.widgets.hovered.bg_fill = egui::Color32::from_rgb(
             color_pallet.copper_red_r,
             color_pallet.copper_red_g,
             color_pallet.copper_red_b,
         );
-        
         style.visuals.widgets.active.bg_fill = egui::Color32::from_rgb(
             color_pallet.venetian_red_r,
             color_pallet.venetian_red_g,
             color_pallet.venetian_red_b,
         );
-        
         style.visuals.widgets.open.bg_fill = egui::Color32::from_rgb(
             color_pallet.red_orange_color_wheel_r,
             color_pallet.red_orange_color_wheel_g,
             color_pallet.red_orange_color_wheel_b,
         );
-        
         ctx.set_style(style);
-        
         let font_ubuntu = include_bytes!("data/fonts/Ubuntu/UbuntuMono-Regular.ttf");
-        
         let mut font = FontDefinitions::default();
-        
         font.font_data
             .insert("Ubuntu".to_string(), Cow::from(&font_ubuntu[..]));
-        
         font.fonts_for_family
             .insert(FontFamily::Monospace, vec!["Ubuntu".to_string()]);
-        
         font.fonts_for_family
             .insert(FontFamily::Proportional, vec!["Ubuntu".to_string()]);
-        
         /*
         font.family_and_size.insert(
             epaint::text::TextStyle::Body,
             (epaint::text::FontFamily::Proportional, 10.0),
         );
-        
         font.family_and_size.insert(
             epaint::text::TextStyle::Body,
             (epaint::text::FontFamily::Monospace, 10.0),
         );
         */
-        
         ctx.set_fonts(font);
-        
 
-        
+
     }
-    
     #[cfg(feature = "persistence")]
-    
     fn save(&mut self, storage: &mut dyn epi::Storage) {
         epi::set_value(storage, epi::APP_KEY, self);
     }
-    
     fn warm_up_enabled(&self) -> bool {
         return true;
     }
-    
     fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
-        
         if self.universe_starchart.active == true {
             egui::CentralPanel::default().show(ctx, |ui| {
                 egui::containers::Frame {
@@ -1403,7 +1002,6 @@ impl epi::App for AppSource {
                 self.universe_starchart_windows(ctx, frame);
             });
         }
-        
         else if self.system_starchart.active == true {
             egui::CentralPanel::default().show(ctx, |ui| {
                 egui::containers::Frame {
@@ -1418,7 +1016,6 @@ impl epi::App for AppSource {
                 self.system_starchart_windows(ctx, frame);
             });
         }
-        
         else if self.research.active == true {
             egui::CentralPanel::default().show(ctx, |ui| {
                 egui::containers::Frame {
@@ -1433,7 +1030,6 @@ impl epi::App for AppSource {
                 self.research_windows(ctx, frame);
             });
         }
-        
         else if self.advanced_comms.active == true {
             egui::CentralPanel::default().show(ctx, |ui| {
                 egui::containers::Frame {
@@ -1448,7 +1044,6 @@ impl epi::App for AppSource {
                 self.advanced_comms_windows(ctx, frame);
             });
         }
-        
         else {
             egui::CentralPanel::default().show(ctx, |ui| {
                 egui::containers::Frame {
@@ -1462,7 +1057,6 @@ impl epi::App for AppSource {
                 self.popup_apps(ctx, frame, ui);
             });
         }
-        
         egui::TopBottomPanel::top("Task Bar").show(ctx, |ui| {
             egui::containers::Frame {
                 margin: Vec2::new(0., 0.),
@@ -1476,21 +1070,16 @@ impl epi::App for AppSource {
                 self.bar_contents(ui, frame);
             });
         });
-        
         egui::TopBottomPanel::bottom("App Dock").show(ctx, |ui| {
             egui::trace!(ui);
             self.app_bar_contents(ui, frame);
         });
-        
     }
 }
 
 impl AppSource {
-    
     fn bar_contents(&mut self, ui: &mut egui::Ui, _frame: &mut epi::Frame<'_>) {
-        
         ui.horizontal_wrapped(|ui| {
-            
             if ui
                 .add(egui::ImageButton::new(
                     self.guppi_img,
@@ -1500,7 +1089,6 @@ impl AppSource {
             {
                 self.guppi_terminal.open = !self.guppi_terminal.open;
             }
-            
             if ui
                 .add(egui::ImageButton::new(
                     self.placeholder_img,
@@ -1510,7 +1098,6 @@ impl AppSource {
             {
                 self.todo.open = !self.todo.open;
             }
-            
             if ui
                 .add(egui::ImageButton::new(
                     self.placeholder_img,
@@ -1520,25 +1107,16 @@ impl AppSource {
             {
                 self.comms.open = !self.comms.open;
             }
-            
             let tau = 1;
             let currentsystem = "Epsilon Eridani";
-            
             ui.with_layout(egui::Layout::top_down(egui::Align::RIGHT), |ui| {
-                
                 ui.add(egui::Label::new(format!("12:00:00  01/01/01  τ {}", tau)));
-                
                 ui.add(egui::Label::new(format!("{} System", currentsystem)));
-                
             });
-            
         });
     }
-    
     fn app_bar_contents(&mut self, ui: &mut egui::Ui, _frame: &mut epi::Frame<'_>) {
-        
         ui.horizontal_wrapped(|ui| {
-            
             //Home
             if ui
                 .add(egui::ImageButton::new(
@@ -1546,14 +1124,12 @@ impl AppSource {
                     egui::Vec2::splat(28.0),
                 ))
                 .clicked()
-            
             {
                 self.universe_starchart.active = false;
                 self.system_starchart.active = false;
                 self.research.active = false;
                 self.advanced_comms.active = false;
             }
-            
             //Universe Starchart
             if ui
                 .add(egui::ImageButton::new(
@@ -1561,14 +1137,12 @@ impl AppSource {
                     egui::Vec2::splat(28.0),
                 ))
                 .clicked()
-            
             {
                 self.universe_starchart.active = true;
                 self.system_starchart.active = false;
                 self.research.active = false;
                 self.advanced_comms.active = false;
             }
-            
             //System Starchart
             if ui
                 .add(egui::ImageButton::new(
@@ -1576,14 +1150,12 @@ impl AppSource {
                     egui::Vec2::splat(28.0),
                 ))
                 .clicked()
-            
             {
                 self.universe_starchart.active = false;
                 self.system_starchart.active = true;
                 self.research.active = false;
                 self.advanced_comms.active = false;
             }
-            
             //Research
             if ui
                 .add(egui::ImageButton::new(
@@ -1591,14 +1163,12 @@ impl AppSource {
                     egui::Vec2::splat(28.0),
                 ))
                 .clicked()
-            
             {
                 self.universe_starchart.active = false;
                 self.system_starchart.active = false;
                 self.research.active = true;
                 self.advanced_comms.active = false;
             }
-            
             //Comms
             if ui
                 .add(egui::ImageButton::new(
@@ -1606,16 +1176,13 @@ impl AppSource {
                     egui::Vec2::splat(28.0),
                 ))
                 .clicked()
-            
             {
                 self.universe_starchart.active = false;
                 self.system_starchart.active = false;
                 self.research.active = false;
                 self.advanced_comms.active = true;
             }
-            
         });
-        
     }
 }
 */
