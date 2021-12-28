@@ -4,6 +4,11 @@ use rend3_impl::Rendering;
 use winit::window::Fullscreen;
 
 fn main() {
+    let image_data_icon = include_bytes!("data/images/icon_round.png");
+    let image_icon = image::load_from_memory(image_data_icon).expect("Failed to load image");
+    let image_buffer_icon = image_icon.to_rgba8();
+    let pixels_icon = image_buffer_icon.into_vec();
+
     let app = Rendering::default();
     rend3_framework::start(
         app,
@@ -11,7 +16,10 @@ fn main() {
             .with_title("Project Heaven")
             .with_maximized(true)
             .with_fullscreen(Some(Fullscreen::Borderless(None)))
-            .with_decorations(false),
+            .with_decorations(false)
+            .with_window_icon(Some(
+                winit::window::Icon::from_rgba(pixels_icon, 256, 256).unwrap(),
+            )),
     )
 }
 
