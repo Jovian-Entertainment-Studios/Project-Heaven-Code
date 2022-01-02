@@ -16,22 +16,26 @@ struct RenderingData {
     color: [f32; 4],
 }
 
+const SAMPLE_COUNT: rend3::types::SampleCount = rend3::types::SampleCount::One;
+
 #[derive(Default)]
 pub struct Rendering {
     data: Option<RenderingData>,
-
     menu_toggle: bool,
     gltf_cube_toggle: bool,
 }
 impl rend3_framework::App for Rendering {
-    const DEFAULT_SAMPLE_COUNT: rend3::types::SampleCount = rend3::types::SampleCount::One;
+    const HANDEDNESS: rend3::types::Handedness = rend3::types::Handedness::Left;
+
+    fn sample_count(&self) -> rend3::types::SampleCount {
+        SAMPLE_COUNT
+    }
 
     fn setup(
         &mut self,
         window: &winit::window::Window,
         renderer: &Arc<rend3::Renderer>,
         _routines: &Arc<rend3_framework::DefaultRoutines>,
-        _surface: &Arc<rend3::types::Surface>,
         surface_format: rend3::types::TextureFormat,
     ) {
         let window_size = window.inner_size();
@@ -133,7 +137,7 @@ impl rend3_framework::App for Rendering {
         window: &winit::window::Window,
         renderer: &Arc<rend3::Renderer>,
         routines: &Arc<rend3_framework::DefaultRoutines>,
-        surface: &Arc<rend3::types::Surface>,
+        surface: Option<&Arc<rend3::types::Surface>>,
         event: rend3_framework::Event<'_, ()>,
         control_flow: impl FnOnce(winit::event_loop::ControlFlow),
     ) {
@@ -193,7 +197,7 @@ impl rend3_framework::App for Rendering {
 
                 // Get a frame
                 let frame = rend3::util::output::OutputFrame::Surface {
-                    surface: Arc::clone(surface),
+                    surface: Arc::clone(surface.unwrap()),
                 };
 
                 // Ready up the renderer
@@ -213,7 +217,7 @@ impl rend3_framework::App for Rendering {
                     &pbr_routine,
                     None,
                     &tonemapping_routine,
-                    Self::DEFAULT_SAMPLE_COUNT,
+                    SAMPLE_COUNT,
                 );
 
                 // Add egui on top of all the other passes

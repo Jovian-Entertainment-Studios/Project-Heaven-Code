@@ -13,12 +13,13 @@ eframe = "0.15.0"
 instant = { version = "0.1", features = ["wasm-bindgen"] }
 serde = "1.0.130"
 image = "0.23.14"
-egui_winit_platform = { version = "0.11.0", git = "https://github.com/cwfitzgerald/egui_winit_platform.git", rev = "eaef13fd5d70bb5b3251424711012ceedb71994b" }
+epi = "0.15.0"
+egui_winit_platform = "0.12.0"
 rend3 = { git = "https://github.com/BVE-Reborn/rend3"}
 rend3-egui = { git = "https://github.com/BVE-Reborn/rend3"}
 rend3-framework = { git = "https://github.com/BVE-Reborn/rend3"}
 rend3-routine = { git = "https://github.com/BVE-Reborn/rend3"}
-winit = "0.25.0"
+winit = "0.26.0"
 glam = "0.20.0"
 pollster = "0.2.4"
 env_logger = "0.9.0"
