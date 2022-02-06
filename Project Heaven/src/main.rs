@@ -23,7 +23,7 @@ fn main() {
     )
 }
 
-
+//Ignore this stuff ;) it's from a few months ago when the project only had 2D rendering
 /*
 use crate::epaint::TextureId;
 use eframe::{egui, epi};
