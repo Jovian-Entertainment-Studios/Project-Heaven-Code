@@ -3,26 +3,36 @@ name = "project-heaven"
 version = "0.0.2"
 authors = ["Albin Sjögren <albin@sjoegren.se>"]
 edition = "2021"
-description = "This is a game based on Dennis E Taylors Bobiverse books. Space exploration, resource management, colonizing, fun mini games and a world full of possibilities"
+description = ""
 categories = ["games"]
 
 
 [dependencies]
-egui = "0.15.0"
-eframe = "0.15.0"
-instant = { version = "0.1", features = ["wasm-bindgen"] }
-serde = "1.0.130"
-image = "0.23.14"
-epi = "0.15.0"
-egui_winit_platform = "0.12.0"
-rend3 = { git = "https://github.com/BVE-Reborn/rend3"}
-rend3-egui = { git = "https://github.com/BVE-Reborn/rend3"}
-rend3-framework = { git = "https://github.com/BVE-Reborn/rend3"}
-rend3-routine = { git = "https://github.com/BVE-Reborn/rend3"}
-winit = "0.26.0"
+# The egui immediate mode gui library
+egui = "0.16.0"
+# Backend-agnostic interface for writing apps using egui
+epi = "0.16.0"
+# Winit integration with egui
+egui_winit_platform = "0.13.0"
+# logging
+env_logger = { version = "0.9", default-features = false, features = ["termcolor", "atty"] }
+# Linear algebra library
 glam = "0.20.0"
+# Portable implementation of Instant.
+instant = { version = "0.1", features = ["wasm-bindgen"] }
+# Renderer core
+rend3 = { version = "^0.2.0",path = "src/rend3-trunk/rend3" }
+# Egui renderer integration
+rend3-egui = { version = "^0.2.0",path = "src/rend3-trunk/rend3-egui" }
+# Framework that deals with the event loop, setting up the renderer, and platform differences.
+rend3-framework = { version = "^0.2.0", path = "src/rend3-trunk/rend3-framework" }
+# Programmable render list that dictates how the scene renders
+rend3-routine = { version = "^0.2.0",path = "src/rend3-trunk/rend3-routine" }
+# Windowing
+winit = "0.26"
+serde = "1.0.130"
+image = "0.24.0"
 pollster = "0.2.4"
-env_logger = "0.9.0"
 nom = "7.0.0"
 rand = "0.8.4"
 serde_json = "1.0.68"
@@ -31,16 +41,3 @@ ndarray = { version = "0.15", features = ["blas"]}
 ndarray-glm = { version = "0.0.10", features = ["openblas-system"] }
 input-actions = "0.1.0"
 gltf = { version = "0.16", default-features = false, features = ["import", "utils"] }
-
-[package.metadata.bundle]
-name = "Project Heaven"
-resources = ["src/data", "src/data/music/Bob_Frame-Rate.mp3"]
-copyright = "Copyright (c) Albin Sjögren 2021. All rights reserved."
-icon = ["src/data/images/GUPPI.png"]
-short_description = "This is a game based on Dennis E Taylors Bobiverse books. Space exploration, resource management, colonizing, fun mini games and a world full of possibilities"
-long_description = """
-This is a game
-"""
-
-[package.metadata.appimage]
-resources = ["src/data", "src/data/color/color.json"]

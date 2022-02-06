@@ -1,28 +1,24 @@
 use std::sync::Arc;
 
-mod mesh_generator;
-use mesh_generator::create_mesh;
-
-struct RenderingData {
+struct ImguiExampleData {
     _object_handle: rend3::types::ObjectHandle,
-    material_handle: rend3::types::MaterialHandle,
     _directional_handle: rend3::types::DirectionalLightHandle,
 
-    egui_routine: rend3_egui::EguiRenderRoutine,
-    platform: egui_winit_platform::Platform,
-    start_time: instant::Instant,
-    color: [f32; 4],
+    imgui: imgui::Context,
+    platform: imgui_winit_support::WinitPlatform,
+    imgui_routine: rend3_imgui::ImguiRenderRoutine,
+    frame_start: instant::Instant,
+
+    demo_window_open: bool,
 }
 
 const SAMPLE_COUNT: rend3::types::SampleCount = rend3::types::SampleCount::One;
 
 #[derive(Default)]
-pub struct Rendering {
-    data: Option<RenderingData>,
-    menu_toggle: bool,
-    gltf_cube_toggle: bool,
+struct ImguiExample {
+    data: Option<ImguiExampleData>,
 }
-impl rend3_framework::App for Rendering {
+impl rend3_framework::App for ImguiExample {
     const HANDEDNESS: rend3::types::Handedness = rend3::types::Handedness::Left;
 
     fn sample_count(&self) -> rend3::types::SampleCount {
@@ -36,17 +32,28 @@ impl rend3_framework::App for Rendering {
         _routines: &Arc<rend3_framework::DefaultRoutines>,
         surface_format: rend3::types::TextureFormat,
     ) {
-        let window_size = window.inner_size();
+        // Set up imgui
+        let mut imgui = imgui::Context::create();
+        let mut platform = imgui_winit_support::WinitPlatform::init(&mut imgui);
+        platform.attach_window(imgui.io_mut(), window, imgui_winit_support::HiDpiMode::Default);
+        imgui.set_ini_filename(None);
 
-        // Create the egui render routine
-        let egui_routine = rend3_egui::EguiRenderRoutine::new(
-            renderer,
-            surface_format,
-            rend3::types::SampleCount::One,
-            window_size.width,
-            window_size.height,
-            window.scale_factor() as f32,
-        );
+        let hidpi_factor = window.scale_factor();
+
+        let font_size = (13.0 * hidpi_factor) as f32;
+        imgui.io_mut().font_global_scale = (1.0 / hidpi_factor) as f32;
+
+        imgui.fonts().add_font(&[imgui::FontSource::DefaultFontData {
+            config: Some(imgui::FontConfig {
+                oversample_h: 1,
+                pixel_snap_h: true,
+                size_pixels: font_size,
+                ..Default::default()
+            }),
+        }]);
+
+        // Create the imgui render routine
+        let imgui_routine = rend3_imgui::ImguiRenderRoutine::new(renderer, &mut imgui, surface_format);
 
         // Create mesh and calculate smooth normals based on vertices
         let mesh = create_mesh();
@@ -60,7 +67,6 @@ impl rend3_framework::App for Rendering {
         // Add PBR material with all defaults except a single color.
         let material = rend3_routine::pbr::PbrMaterial {
             albedo: rend3_routine::pbr::AlbedoComponent::Value(glam::Vec4::new(0.0, 0.5, 0.5, 1.0)),
-            transparency: rend3_routine::pbr::Transparency::Blend,
             ..rend3_routine::pbr::PbrMaterial::default()
         };
         let material_handle = renderer.add_material(material);
@@ -68,7 +74,7 @@ impl rend3_framework::App for Rendering {
         // Combine the mesh and the material with a location to give an object.
         let object = rend3::types::Object {
             mesh_kind: rend3::types::ObjectMeshKind::Static(mesh_handle),
-            material: material_handle.clone(),
+            material: material_handle,
             transform: glam::Mat4::IDENTITY,
         };
 
@@ -88,10 +94,7 @@ impl rend3_framework::App for Rendering {
 
         // Set camera location data
         renderer.set_camera_data(rend3::types::Camera {
-            projection: rend3::types::CameraProjection::Perspective {
-                vfov: 60.0,
-                near: 0.1,
-            },
+            projection: rend3::types::CameraProjection::Perspective { vfov: 60.0, near: 0.1 },
             view,
         });
 
@@ -106,28 +109,18 @@ impl rend3_framework::App for Rendering {
             distance: 400.0,
         });
 
-        // Create the winit/egui integration, which manages our egui context for us.
-        let platform =
-            egui_winit_platform::Platform::new(egui_winit_platform::PlatformDescriptor {
-                physical_width: window_size.width as u32,
-                physical_height: window_size.height as u32,
-                scale_factor: window.scale_factor(),
-                font_definitions: egui::FontDefinitions::default(),
-                style: Default::default(),
-            });
+        let frame_start = instant::Instant::now();
 
-        let start_time = instant::Instant::now();
-        let color: [f32; 4] = [0.0, 0.5, 0.5, 1.0];
-
-        self.data = Some(RenderingData {
+        self.data = Some(ImguiExampleData {
             _object_handle,
-            material_handle,
             _directional_handle,
 
-            egui_routine,
+            imgui,
             platform,
-            start_time,
-            color,
+            imgui_routine,
+            frame_start,
+
+            demo_window_open: true,
         })
     }
 
@@ -145,57 +138,21 @@ impl rend3_framework::App for Rendering {
         let data = self.data.as_mut().unwrap();
 
         // Pass the winit events to the platform integration.
-        data.platform.handle_event(&event);
+        data.platform.handle_event(data.imgui.io_mut(), window, &event);
 
         match event {
             rend3_framework::Event::RedrawRequested(..) => {
+                // Setup an imgui frame
                 data.platform
-                    .update_time(data.start_time.elapsed().as_secs_f64());
-                data.platform.begin_frame();
+                    .prepare_frame(data.imgui.io_mut(), window)
+                    .expect("could not prepare imgui frame");
+                let ui = data.imgui.frame();
 
-                // Insert egui commands here
-                let ctx = data.platform.context();
-                egui::TopBottomPanel::top("Taskbar").show(&ctx, |ui| {
-                    if ui.add(egui::Button::new("Menu")).clicked() {
-                        self.menu_toggle = !self.menu_toggle;
-                    }
-                    if self.menu_toggle == true {
-                        egui::Window::new("Change color")
-                            .resizable(false)
-                            .anchor(egui::Align2::LEFT_TOP, [3.0, 30.0])
-                            .show(&ctx, |ui| {
-                                if ui.add(egui::Button::new("GLTF/Cube")).clicked() {
-                                    self.gltf_cube_toggle = !self.gltf_cube_toggle;
-                                }
-                                ui.label("Change the color of the cube");
-                                if ui
-                                    .color_edit_button_rgba_unmultiplied(&mut data.color)
-                                    .changed()
-                                {
-                                    renderer.update_material(
-                                        &data.material_handle.clone(),
-                                        rend3_routine::pbr::PbrMaterial {
-                                            albedo: rend3_routine::pbr::AlbedoComponent::Value(
-                                                glam::Vec4::from(data.color),
-                                            ),
-                                            transparency: rend3_routine::pbr::Transparency::Blend,
-                                            ..rend3_routine::pbr::PbrMaterial::default()
-                                        },
-                                    );
-                                }
-                            });
-                    }
-                });
+                // Insert imgui commands here
+                ui.show_demo_window(&mut data.demo_window_open);
 
-                // End the UI frame. Now let's draw the UI with our Backend, we could also
-                // handle the output here
-                let (_output, paint_commands) = data.platform.end_frame(Some(window));
-                let paint_jobs = data.platform.context().tessellate(paint_commands);
-
-                let input = rend3_egui::Input {
-                    clipped_meshes: &paint_jobs,
-                    context: data.platform.context(),
-                };
+                // Prepare for rendering
+                data.platform.prepare_render(&ui, window);
 
                 // Get a frame
                 let frame = rend3::util::output::OutputFrame::Surface {
@@ -224,9 +181,9 @@ impl rend3_framework::App for Rendering {
                     glam::Vec4::ZERO,
                 );
 
-                // Add egui on top of all the other passes
+                // Add imgui on top of all the other passes
                 let surface = graph.add_surface_texture();
-                data.egui_routine.add_to_graph(&mut graph, input, surface);
+                data.imgui_routine.add_to_graph(&mut graph, ui.render(), surface);
 
                 // Dispatch a render using the built up rendergraph!
                 graph.execute(renderer, frame, cmd_bufs, &ready);
@@ -234,19 +191,82 @@ impl rend3_framework::App for Rendering {
                 control_flow(winit::event_loop::ControlFlow::Poll);
             }
             rend3_framework::Event::MainEventsCleared => {
+                let now = instant::Instant::now();
+                let delta = now - data.frame_start;
+                data.frame_start = now;
+                data.imgui.io_mut().update_delta_time(delta);
+
                 window.request_redraw();
             }
-            rend3_framework::Event::WindowEvent { event, .. } => match event {
-                winit::event::WindowEvent::Resized(size) => {
-                    data.egui_routine
-                        .resize(size.width, size.height, window.scale_factor() as f32);
-                }
-                winit::event::WindowEvent::CloseRequested => {
+            rend3_framework::Event::WindowEvent { event, .. } => {
+                if event == winit::event::WindowEvent::CloseRequested {
                     control_flow(winit::event_loop::ControlFlow::Exit);
                 }
-                _ => {}
-            },
+            }
             _ => {}
         }
     }
+}
+
+fn main() {
+    let app = ImguiExample::default();
+    rend3_framework::start(
+        app,
+        winit::window::WindowBuilder::new()
+            .with_title("imgui")
+            .with_maximized(true),
+    )
+}
+
+fn vertex(pos: [f32; 3]) -> glam::Vec3 {
+    glam::Vec3::from(pos)
+}
+
+fn create_mesh() -> rend3::types::Mesh {
+    let vertex_positions = [
+        // far side (0.0, 0.0, 1.0)
+        vertex([-1.0, -1.0, 1.0]),
+        vertex([1.0, -1.0, 1.0]),
+        vertex([1.0, 1.0, 1.0]),
+        vertex([-1.0, 1.0, 1.0]),
+        // near side (0.0, 0.0, -1.0)
+        vertex([-1.0, 1.0, -1.0]),
+        vertex([1.0, 1.0, -1.0]),
+        vertex([1.0, -1.0, -1.0]),
+        vertex([-1.0, -1.0, -1.0]),
+        // right side (1.0, 0.0, 0.0)
+        vertex([1.0, -1.0, -1.0]),
+        vertex([1.0, 1.0, -1.0]),
+        vertex([1.0, 1.0, 1.0]),
+        vertex([1.0, -1.0, 1.0]),
+        // left side (-1.0, 0.0, 0.0)
+        vertex([-1.0, -1.0, 1.0]),
+        vertex([-1.0, 1.0, 1.0]),
+        vertex([-1.0, 1.0, -1.0]),
+        vertex([-1.0, -1.0, -1.0]),
+        // top (0.0, 1.0, 0.0)
+        vertex([1.0, 1.0, -1.0]),
+        vertex([-1.0, 1.0, -1.0]),
+        vertex([-1.0, 1.0, 1.0]),
+        vertex([1.0, 1.0, 1.0]),
+        // bottom (0.0, -1.0, 0.0)
+        vertex([1.0, -1.0, 1.0]),
+        vertex([-1.0, -1.0, 1.0]),
+        vertex([-1.0, -1.0, -1.0]),
+        vertex([1.0, -1.0, -1.0]),
+    ];
+
+    let index_data: &[u32] = &[
+        0, 1, 2, 2, 3, 0, // far
+        4, 5, 6, 6, 7, 4, // near
+        8, 9, 10, 10, 11, 8, // right
+        12, 13, 14, 14, 15, 12, // left
+        16, 17, 18, 18, 19, 16, // top
+        20, 21, 22, 22, 23, 20, // bottom
+    ];
+
+    rend3::types::MeshBuilder::new(vertex_positions.to_vec(), rend3::types::Handedness::Left)
+        .with_indices(index_data.to_vec())
+        .build()
+        .unwrap()
 }
