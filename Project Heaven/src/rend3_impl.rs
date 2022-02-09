@@ -3,6 +3,9 @@ use std::sync::Arc;
 mod mesh_generator;
 use mesh_generator::create_mesh;
 
+mod mesh_importer;
+use mesh_importer::load_gltf;
+
 struct RenderingData {
     _object_handle: rend3::types::ObjectHandle,
     material_handle: rend3::types::MaterialHandle,
@@ -36,6 +39,92 @@ impl rend3_framework::App for Rendering {
         _routines: &Arc<rend3_framework::DefaultRoutines>,
         surface_format: rend3::types::TextureFormat,
     ) {
+        let window_size = window.inner_size();
+
+        // Create the egui render routine
+        let egui_routine = rend3_egui::EguiRenderRoutine::new(
+            renderer,
+            surface_format,
+            rend3::types::SampleCount::One,
+            window_size.width,
+            window_size.height,
+            window.scale_factor() as f32,
+        );
+        // Create mesh and calculate smooth normals based on vertices.
+        //
+        // We do not need to keep these handles alive once we make the object
+        let (mesh, material) = load_gltf(
+            renderer,
+            concat!(env!("CARGO_MANIFEST_DIR"), "/src/data/3d/test.glb"),
+        );
+
+        // Add PBR material with all defaults except a single color.
+        let material = rend3_routine::pbr::PbrMaterial {
+            albedo: rend3_routine::pbr::AlbedoComponent::Value(glam::Vec4::new(0.0, 0.5, 0.5, 1.0)),
+            transparency: rend3_routine::pbr::Transparency::Blend,
+            ..rend3_routine::pbr::PbrMaterial::default()
+        };
+        let material_handle = renderer.add_material(material);
+
+        // Combine the mesh and the material with a location to give an object.
+        let object = rend3::types::Object {
+            mesh_kind: rend3::types::ObjectMeshKind::Static(mesh),
+            material: material_handle.clone(),
+            transform: glam::Mat4::from_scale(glam::Vec3::new(1.0, 1.0, -1.0)),
+        };
+
+        // We need to keep the object alive.
+        let _object_handle = renderer.add_object(object);
+
+        //self.object_handle = Some(renderer.add_object(object));
+        let view_location = glam::Vec3::new(3.0, 3.0, -5.0);
+        let view = glam::Mat4::from_euler(glam::EulerRot::XYZ, -0.55, 0.5, 0.0);
+        let view = view * glam::Mat4::from_translation(-view_location);
+
+        // Set camera's location
+        renderer.set_camera_data(rend3::types::Camera {
+            projection: rend3::types::CameraProjection::Perspective {
+                vfov: 60.0,
+                near: 0.1,
+            },
+            view,
+        });
+
+        // Create a single directional light
+        //
+        // We need to keep the directional light handle alive.
+        let _directional_handle = renderer.add_directional_light(rend3::types::DirectionalLight {
+            color: glam::Vec3::ONE,
+            intensity: 1.0,
+            // Direction will be normalized
+            direction: glam::Vec3::new(-1.0, -4.0, 2.0),
+            distance: 400.0,
+        });
+
+        // Create the winit/egui integration, which manages our egui context for us.
+        let platform =
+            egui_winit_platform::Platform::new(egui_winit_platform::PlatformDescriptor {
+                physical_width: window_size.width as u32,
+                physical_height: window_size.height as u32,
+                scale_factor: window.scale_factor(),
+                font_definitions: egui::FontDefinitions::default(),
+                style: Default::default(),
+            });
+
+        let start_time = instant::Instant::now();
+        let color: [f32; 4] = [0.0, 0.5, 0.5, 1.0];
+
+        self.data = Some(RenderingData {
+            _object_handle,
+            material_handle,
+            _directional_handle,
+
+            egui_routine,
+            platform,
+            start_time,
+            color,
+        })
+        /*
         let window_size = window.inner_size();
 
         // Create the egui render routine
@@ -129,6 +218,7 @@ impl rend3_framework::App for Rendering {
             start_time,
             color,
         })
+        */
     }
 
     fn handle_event(
@@ -166,6 +256,9 @@ impl rend3_framework::App for Rendering {
                             .show(&ctx, |ui| {
                                 if ui.add(egui::Button::new("GLTF/Cube")).clicked() {
                                     self.gltf_cube_toggle = !self.gltf_cube_toggle;
+                                }
+                                if ui.add(egui::Button::new("exit")).clicked() {
+                                    std::process::exit(1);
                                 }
                                 ui.label("Change the color of the cube");
                                 if ui
