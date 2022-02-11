@@ -1,6 +1,7 @@
 use egui::{FontDefinitions, FontFamily};
 use std::borrow::Cow;
 use std::sync::Arc;
+use egui_wgpu_backend::RenderPass;
 
 mod mesh_generator;
 use mesh_generator::create_mesh;
@@ -26,6 +27,7 @@ pub struct Rendering {
     data: Option<RenderingData>,
     menu_toggle: bool,
     gltf_cube_toggle: bool,
+    placeholder_img: egui::TextureId,
 }
 impl rend3_framework::App for Rendering {
     const HANDEDNESS: rend3::types::Handedness = rend3::types::Handedness::Left;
@@ -177,6 +179,18 @@ impl rend3_framework::App for Rendering {
                 style: style,
             });
 
+        //Images
+        let image_data_placeholder = include_bytes!("data/images/icon_round.png");
+        let image_placeholder =
+            image::load_from_memory(image_data_placeholder).expect("Failed to load image");
+        let image_buffer_placeholder = image_placeholder.to_rgba8();
+        let size_placeholder = [256 as usize, 256 as usize];
+        let img_placeholder =
+            epi::Image::from_rgba_unmultiplied(size_placeholder, &image_buffer_placeholder);
+        // Allocate a texture:
+        //self.placeholder_img = RenderPass::egui_texture_from_wgpu_texture(&mut self, &wgpu::Device &wgpu::TextureView wgpu::FilterMode);
+        //let placeholder_img = frame.alloc_texture(img_placeholder);
+
         let start_time = instant::Instant::now();
         let color: [f32; 4] = [0.0, 0.5, 0.5, 1.0];
 
@@ -249,6 +263,15 @@ impl rend3_framework::App for Rendering {
                                 }
                             });
                     }
+                });
+                egui::TopBottomPanel::bottom("appdock").show(&ctx, |ui| {
+                    if ui
+                        .add(egui::widgets::ImageButton::new(
+                            self.placeholder_img,
+                            egui::Vec2::splat(256.0),
+                        ))
+                        .clicked()
+                    {}
                 });
 
                 // End the UI frame. Now let's draw the UI with our Backend, we could also
