@@ -101,6 +101,42 @@ impl rend3_framework::App for Rendering {
             distance: 400.0,
         });
 
+        let mut style: egui::Style = Default::default();
+
+        style.visuals.extreme_bg_color = egui::Color32::from_rgb(45, 51, 59);
+
+        style.visuals.faint_bg_color = egui::Color32::from_rgb(45, 51, 59);
+
+        style.visuals.code_bg_color = egui::Color32::from_rgb(45, 51, 59);
+
+        style.visuals.hyperlink_color = egui::Color32::from_rgb(255, 0, 0);
+
+        style.visuals.override_text_color = Some(egui::Color32::from_rgb(173, 186, 199));
+
+        style.visuals.window_corner_radius = 10.0;
+
+        style.visuals.button_frame = true;
+
+        style.visuals.collapsing_header_frame = true;
+
+        style.visuals.widgets.noninteractive.bg_fill = egui::Color32::from_rgb(35, 39, 46);
+
+        style.visuals.widgets.noninteractive.fg_stroke =
+            egui::Stroke::new(0., egui::Color32::from_rgb(173, 186, 199));
+
+        style.visuals.widgets.inactive.bg_fill = egui::Color32::TRANSPARENT;
+
+        style.visuals.widgets.hovered.bg_fill = egui::Color32::from_rgb(45, 51, 59);
+
+        style.visuals.widgets.active.bg_fill = egui::Color32::from_rgb(45, 51, 59);
+
+        style.visuals.widgets.open.bg_fill = egui::Color32::from_rgb(45, 51, 59);
+
+        style.visuals.widgets.noninteractive.fg_stroke = egui::Stroke {
+            width: 10.0,
+            color: egui::Color32::from_rgb(173, 186, 199),
+        };
+
         // Create the winit/egui integration, which manages our egui context for us.
         let platform =
             egui_winit_platform::Platform::new(egui_winit_platform::PlatformDescriptor {
@@ -108,7 +144,7 @@ impl rend3_framework::App for Rendering {
                 physical_height: window_size.height as u32,
                 scale_factor: window.scale_factor(),
                 font_definitions: egui::FontDefinitions::default(),
-                style: Default::default(),
+                style: style,
             });
 
         let start_time = instant::Instant::now();
@@ -124,7 +160,6 @@ impl rend3_framework::App for Rendering {
             start_time,
             color,
         })
-        
     }
 
     fn handle_event(
