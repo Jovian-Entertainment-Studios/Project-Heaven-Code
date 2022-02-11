@@ -1,3 +1,5 @@
+use egui::{FontDefinitions, FontFamily};
+use std::borrow::Cow;
 use std::sync::Arc;
 
 mod mesh_generator;
@@ -137,13 +139,41 @@ impl rend3_framework::App for Rendering {
             color: egui::Color32::from_rgb(173, 186, 199),
         };
 
+        let font_dejavusansmono = include_bytes!("data/fonts/DejaVuSansMono.ttf");
+        let mut font = FontDefinitions::default();
+
+        font.font_data.insert(
+            "DejaVu Sans Mono".to_string(),
+            egui::FontData {
+                font: Cow::from(&font_dejavusansmono[..]),
+                index: 0,
+            },
+        );
+        font.fonts_for_family
+            .insert(FontFamily::Monospace, vec!["DejaVu Sans Mono".to_string()]);
+
+        font.fonts_for_family.insert(
+            FontFamily::Proportional,
+            vec!["DejaVu Sans Mono".to_string()],
+        );
+        /*
+        font.family_and_size.insert(
+            epaint::text::TextStyle::Body,
+            (epaint::text::FontFamily::Proportional, 10.0),
+        );
+        font.family_and_size.insert(
+            epaint::text::TextStyle::Body,
+            (epaint::text::FontFamily::Monospace, 10.0),
+        );
+        */
+
         // Create the winit/egui integration, which manages our egui context for us.
         let platform =
             egui_winit_platform::Platform::new(egui_winit_platform::PlatformDescriptor {
                 physical_width: window_size.width as u32,
                 physical_height: window_size.height as u32,
                 scale_factor: window.scale_factor(),
-                font_definitions: egui::FontDefinitions::default(),
+                font_definitions: font,
                 style: style,
             });
 
