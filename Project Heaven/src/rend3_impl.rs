@@ -285,7 +285,7 @@ impl rend3_framework::App for Rendering {
                     &tonemapping_routine,
                     resolution,
                     SAMPLE_COUNT,
-                    glam::Vec4::ZERO,
+                    glam::Vec4::splat(1.0),
                 );
 
                 // Add egui on top of all the other passes
