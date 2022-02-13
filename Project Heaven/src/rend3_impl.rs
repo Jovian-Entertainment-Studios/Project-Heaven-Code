@@ -4,7 +4,7 @@ use std::sync::Arc;
 use egui_wgpu_backend::RenderPass;
 
 mod mesh_generator;
-use mesh_generator::create_mesh;
+//use mesh_generator::create_mesh;
 
 mod mesh_importer;
 use mesh_importer::load_gltf;
@@ -180,16 +180,14 @@ impl rend3_framework::App for Rendering {
             });
 
         //Images
-        let image_data_placeholder = include_bytes!("data/images/icon_round.png");
-        let image_placeholder =
-            image::load_from_memory(image_data_placeholder).expect("Failed to load image");
-        let image_buffer_placeholder = image_placeholder.to_rgba8();
-        let size_placeholder = [256 as usize, 256 as usize];
-        let img_placeholder =
-            epi::Image::from_rgba_unmultiplied(size_placeholder, &image_buffer_placeholder);
-        // Allocate a texture:
-        //self.placeholder_img = RenderPass::egui_texture_from_wgpu_texture(&mut self, &wgpu::Device &wgpu::TextureView wgpu::FilterMode);
-        //let placeholder_img = frame.alloc_texture(img_placeholder);
+        let image_bytes = include_bytes!("data/images/icon_round.png");
+        let image_image = image::load_from_memory(image_bytes).unwrap();
+        let image_rgba = image_image.as_rgba8().unwrap();
+
+        use image::GenericImageView;
+        let dimensions = image_image.dimensions();
+
+        self.placeholder_img = RenderPass::egui_texture_from_wgpu_texture(&mut self, );
 
         let start_time = instant::Instant::now();
         let color: [f32; 4] = [0.0, 0.5, 0.5, 1.0];

@@ -8,6 +8,7 @@ categories = ["games"]
 
 
 [dependencies]
+wgpu = "0.12"
 egui_wgpu_backend = "0.16.0"
 # The egui immediate mode gui library
 egui = "0.16.0"
