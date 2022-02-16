@@ -1,8 +1,7 @@
-/*
 const G = 10_f64;
 //Sort all objects
 //Called when rend3 puts object into active rendering
-pub fn sortandstack(num: f32/*f32 so that we can show sub objects (ex satelite around planet, planet around star etc)*/, pos: DVec3, vel: DVec3, mass: f64) {
+pub fn sortandstack(num: f32/*f32 so that we can show sub objects (ex satelite around planet, planet around star etc)*/, pos: Veec3, vel: Vec3, mass: f64) {
     //Read json into stack of tuple vec3 if file exists
 
     //Add new variables to thhe stack
@@ -27,7 +26,7 @@ fn calcnew(framerate: u8) {
     //Write all new values to file and exit
 }
 
-fn splitstack(num: f32) -> (f32, DVec3, DVec3) {
+fn splitstack(num: f32) -> (f32, Vec3, Vec3) {
     //read json with new values
 
     //take the nth var from the stack
@@ -42,4 +41,3 @@ fn splitstack(num: f32) -> (f32, DVec3, DVec3) {
         return (num, pos, vel);
     }
 }
-*/

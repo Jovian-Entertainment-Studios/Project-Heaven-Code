@@ -77,7 +77,7 @@ impl rend3_framework::App for Rendering {
             ),
         };
 
-        let test = glam::Mat4::to_scale_rotation_translation(&object.transform);
+        let (scale, rotation, position) = glam::Mat4::to_scale_rotation_translation(&object.transform);
 
         // We need to keep the object alive.
         let _object_handle = renderer.add_object(object);
