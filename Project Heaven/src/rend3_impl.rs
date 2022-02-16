@@ -1,7 +1,7 @@
 use egui::{FontDefinitions, FontFamily};
+use egui_wgpu_backend::RenderPass;
 use std::borrow::Cow;
 use std::sync::Arc;
-use egui_wgpu_backend::RenderPass;
 
 mod mesh_generator;
 //use mesh_generator::create_mesh;
@@ -180,6 +180,10 @@ impl rend3_framework::App for Rendering {
             });
 
         //Images
+
+        let device = &renderer.device;
+        let queue = &renderer.queue;
+
         let image_bytes = include_bytes!("data/images/icon_round.png");
         let image_image = image::load_from_memory(image_bytes).unwrap();
         let image_rgba = image_image.as_rgba8().unwrap();
@@ -187,7 +191,9 @@ impl rend3_framework::App for Rendering {
         use image::GenericImageView;
         let dimensions = image_image.dimensions();
 
-        self.placeholder_img = RenderPass::egui_texture_from_wgpu_texture(&mut self, );
+        self.placeholder_img = rend3_egui::EguiRenderRoutine::image_to_egui(
+            &mut self, renderer, image_rgba, dimensions,
+        );
 
         let start_time = instant::Instant::now();
         let color: [f32; 4] = [0.0, 0.5, 0.5, 1.0];
