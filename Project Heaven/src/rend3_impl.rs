@@ -70,8 +70,14 @@ impl rend3_framework::App for Rendering {
         let object = rend3::types::Object {
             mesh_kind: rend3::types::ObjectMeshKind::Static(mesh),
             material: material_handle.clone(),
-            transform: glam::Mat4::from_scale(glam::Vec3::new(1.0, 1.0, -1.0)),
+            transform: glam::Mat4::from_scale_rotation_translation(
+                glam::Vec3::new(1.0, 1.0, -1.0),
+                rend3::types::glam::Quat::IDENTITY,
+                glam::Vec3::new(0.0, 0.0, 0.0),
+            ),
         };
+
+        let test = glam::Mat4::to_scale_rotation_translation(&object.transform);
 
         // We need to keep the object alive.
         let _object_handle = renderer.add_object(object);
@@ -124,7 +130,6 @@ impl rend3_framework::App for Rendering {
             start_time,
             color,
         })
-        
     }
 
     fn handle_event(
