@@ -6,6 +6,9 @@ use mesh_generator::create_mesh;
 mod mesh_importer;
 use mesh_importer::load_gltf;
 
+mod physics;
+use physics::sortandstack;
+
 struct RenderingData {
     _object_handle: rend3::types::ObjectHandle,
     material_handle: rend3::types::MaterialHandle,
