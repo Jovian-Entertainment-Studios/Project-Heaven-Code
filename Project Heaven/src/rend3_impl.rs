@@ -46,7 +46,7 @@ impl rend3_framework::App for Rendering {
         let window_size = window.inner_size();
 
         // Create the egui render routine
-        let egui_routine = rend3_egui::EguiRenderRoutine::new(
+        let mut egui_routine = rend3_egui::EguiRenderRoutine::new(
             renderer,
             surface_format,
             rend3::types::SampleCount::One,
@@ -192,7 +192,7 @@ impl rend3_framework::App for Rendering {
         let dimensions = image_image.dimensions();
 
         self.placeholder_img = rend3_egui::EguiRenderRoutine::image_to_egui(
-            &mut self, renderer, image_rgba, dimensions,
+            &mut egui_routine.internal, renderer, image_rgba, dimensions,
         );
 
         let start_time = instant::Instant::now();
