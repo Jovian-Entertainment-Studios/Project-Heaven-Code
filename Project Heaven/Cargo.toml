@@ -8,6 +8,7 @@ categories = ["games"]
 
 
 [dependencies]
+spv-rs = "0.3.10"
 # The egui immediate mode gui library
 egui = "0.16.0"
 # Backend-agnostic interface for writing apps using egui
