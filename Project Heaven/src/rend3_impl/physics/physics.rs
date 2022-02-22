@@ -3,14 +3,12 @@ use std::{
     io::{BufReader, BufWriter},
 };
 
-use glam::Vec3;
+use glam::DVec3;
 use serde_json::json;
-
-const GRAVITY: f64 = 9.82;
 
 //Sort all objects
 //Called when rend3 puts object into active rendering
-pub fn sortandstack(name: &str, pos: Vec3, vel: Vec3, mass: f64) {
+pub fn sortandstack(name: &str, position: DVec3, velocity: DVec3, mass: f64) {
     //Read json into stack of tuple vec3 if file exists
     let data =
         fs::read_to_string("src/data/tmp/physics_objects.json").expect("Unable to read file");
@@ -19,8 +17,8 @@ pub fn sortandstack(name: &str, pos: Vec3, vel: Vec3, mass: f64) {
 
     let new_data = json!({
         name: {
-            "pos": pos.to_array(),
-            "vel": vel.to_array(),
+            "pos": position.to_array(),
+            "vel": velocity.to_array(),
             "mass": mass,
         }
     });

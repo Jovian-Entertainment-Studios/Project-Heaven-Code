@@ -4,6 +4,8 @@ use rend3_impl::Rendering;
 use winit::window::Fullscreen;
 
 fn main() {
+    let stringrecord = spv_rs::parse_csv_deserialize("src/data/stars/FK6.csv");
+    println!("{:?}", stringrecord);
     let image_data_icon = include_bytes!("data/images/icon_round.png");
     let image_icon = image::load_from_memory(image_data_icon).expect("Failed to load image");
     let image_buffer_icon = image_icon.to_rgba8();

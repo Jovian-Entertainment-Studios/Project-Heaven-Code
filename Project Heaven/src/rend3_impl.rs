@@ -69,6 +69,8 @@ impl rend3_framework::App for Rendering {
         };
         let material_handle = renderer.add_material(material);
 
+        //let position = spv_rs::companion_relative_position(a, e, period, t_p, lotn, aop, i);
+
         // Combine the mesh and the material with a location to give an object.
         let object = rend3::types::Object {
             mesh_kind: rend3::types::ObjectMeshKind::Static(mesh),
@@ -80,7 +82,8 @@ impl rend3_framework::App for Rendering {
             ),
         };
 
-        let (scale, rotation, position) = glam::Mat4::to_scale_rotation_translation(&object.transform);
+        let (scale, rotation, position) =
+            glam::Mat4::to_scale_rotation_translation(&object.transform);
 
         // We need to keep the object alive.
         let _object_handle = renderer.add_object(object);
