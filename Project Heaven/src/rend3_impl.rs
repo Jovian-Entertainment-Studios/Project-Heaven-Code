@@ -10,7 +10,7 @@ mod physics;
 use physics::sortandstack;
 
 struct RenderingData {
-    _object_handle: rend3::types::ObjectHandle,
+    _object_handle: std::vec::Vec<rend3::types::ObjectHandle>,
     material_handle: rend3::types::MaterialHandle,
     _directional_handle: rend3::types::DirectionalLightHandle,
 
@@ -84,7 +84,9 @@ impl rend3_framework::App for Rendering {
                 glam::Vec3::new(0.0, 0.0, 0.0),
             ),
         };
-        let mut _object_handle = renderer.add_object(player);
+
+        let mut object_vec = Vec::new();
+        object_vec.push(renderer.add_object(player));
 
         for i in star_data {
             // Combine the mesh and the material with a location to give an object.
@@ -92,13 +94,15 @@ impl rend3_framework::App for Rendering {
                 mesh_kind: rend3::types::ObjectMeshKind::Static(sphere_mesh.clone()),
                 material: material_handle.clone(),
                 transform: glam::Mat4::from_scale_rotation_translation(
-                    glam::Vec3::new(1.0, 1.0, -1.0),
+                    glam::Vec3::new(1000.0, 1000.0, -1000.0),
                     rend3::types::glam::Quat::IDENTITY,
-                    spv_rs::position(i.plx_j2000, i.ra_j2000, i.dec_j2000),
+                    spv_rs::position(i.plx_j2000 * 2000000000000., i.ra_j2000, i.dec_j2000),
                 ),
             };
+            let test = spv_rs::position(i.plx_j2000 * 2000000000000., i.ra_j2000, i.dec_j2000);
+            println!("{:?}", test);
             // We need to keep the object alive.
-            _object_handle = renderer.add_object(object);
+            object_vec.push(renderer.add_object(object));
         }
 
         //self.object_handle = Some(renderer.add_object(object));
@@ -140,7 +144,7 @@ impl rend3_framework::App for Rendering {
         let color: [f32; 4] = [0.0, 0.5, 0.5, 1.0];
 
         self.data = Some(RenderingData {
-            _object_handle,
+            _object_handle: object_vec,
             material_handle,
             _directional_handle,
 
