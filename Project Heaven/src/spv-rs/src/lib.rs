@@ -1,3 +1,4 @@
+use glam::f32::Vec3;
 use glam::f64::{DMat3, DVec2, DVec3};
 
 /// Position of the companion star in a twobody system with rotation relative to the earth/sun plane applied.
@@ -156,10 +157,10 @@ pub fn euler_angle_transformations(lotn: f64, aop: f64, i: f64) -> DMat3 {
 /// Can be used in conjuction with companion functions to place a twobody system relative to the sun.
 /// parallax is in mas (milliarcseconds), right_ascension is in degrees and declination in degrees.
 /// Output is a 3-dimensional vector with x, y and z in that order all in meters.
-pub fn position(parallax: f64, right_ascension: f64, declination: f64) -> DVec3 {
+pub fn position(parallax: f32, right_ascension: f32, declination: f32) -> Vec3 {
     let distance = 1. / (parallax / 1000.);
 
-    let distnace_si = distance * (3.0856778570831 * 10_f64.powf(16.));
+    let distnace_si = distance * (3.0856778570831 * 10_f32.powf(16.));
 
     let right_ascension_rad = right_ascension.to_radians();
     let declination_rad = (declination + 90.).to_radians();
@@ -170,7 +171,7 @@ pub fn position(parallax: f64, right_ascension: f64, declination: f64) -> DVec3 
 
     let z = distnace_si * declination_rad.cos();
 
-    DVec3::new(x, y, z)
+    Vec3::new(x, y, z)
 }
 
 /// Position on the surface of a sphere with radius in meters.
@@ -195,17 +196,17 @@ pub fn position_surface(radius: f64, right_ascension: f64, declination: f64) -> 
 /// radial_velocity is in km/s.
 /// Output is a 3-dimensional vector with x, y and z in that order all in meters/second.
 pub fn velocity(
-    parallax: f64,
-    right_ascension: f64,
-    declination: f64,
-    proper_motion_ra: f64,
-    proper_motion_dec: f64,
-    radial_velocity: f64,
-) -> DVec3 {
+    parallax: f32,
+    right_ascension: f32,
+    declination: f32,
+    proper_motion_ra: f32,
+    proper_motion_dec: f32,
+    radial_velocity: f32,
+) -> Vec3 {
     let distance = 1. / (parallax / 1000.);
 
     //SI
-    let distnace_si = distance * (3.0856778570831 * 10_f64.powf(16.));
+    let distnace_si = distance * (3.0856778570831 * 10_f32.powf(16.));
     let radial_velocity_si = radial_velocity * 1000.;
 
     let proper_motion_x = distnace_si
@@ -251,7 +252,7 @@ pub fn velocity(
     let y_v = radial_velocity_vector_y + proper_motion_vector_y;
     let z_v = radial_velocity_vector_z + proper_motion_vector_z;
 
-    DVec3::new(x_v, y_v, z_v)
+    Vec3::new(x_v, y_v, z_v)
 }
 
 /// Takes a in as (arcseconds) and parllax in mas (milliarcsecond) and outputs a in au.
@@ -438,7 +439,10 @@ pub fn period(a: f64, e: f64) -> f64 {
 }
 
 /// If you for some reason had these parameters and not a then here ya go
-pub fn semi_major_axis(standard_gravitational_parameter: f64, specific_mechanical_energy: f64) -> f64 {
+pub fn semi_major_axis(
+    standard_gravitational_parameter: f64,
+    specific_mechanical_energy: f64,
+) -> f64 {
     0. - (standard_gravitational_parameter / (2. * specific_mechanical_energy))
 }
 
@@ -450,11 +454,17 @@ pub fn mean_motion(a: f64, e: f64) -> f64 {
 }
 
 /// If you for some reason had these parameters and not e then here ya go
-pub fn eccentricity(standard_gravitational_parameter: f64, specific_mechanical_energy: f64, specific_angular_momentum_value: f64) -> f64 {
-    (1. - ((2. * specific_mechanical_energy * (specific_angular_momentum_value.powf(2.))) / (standard_gravitational_parameter.powf(2.)))).sqrt()
+pub fn eccentricity(
+    standard_gravitational_parameter: f64,
+    specific_mechanical_energy: f64,
+    specific_angular_momentum_value: f64,
+) -> f64 {
+    (1. - ((2. * specific_mechanical_energy * (specific_angular_momentum_value.powf(2.)))
+        / (standard_gravitational_parameter.powf(2.))))
+    .sqrt()
 }
 
-/// Just the companion velocity but as a value and not coordinates 
+/// Just the companion velocity but as a value and not coordinates
 pub fn companion_velocity_value(a: f64, e: f64, period: f64, t_p: f64) -> f64 {
     let mu = standard_gravitational_parameter(a, e);
     let epsilon = specific_mechanical_energy(a, e);
@@ -468,16 +478,21 @@ pub fn linear_eccentricity(a: f64, e: f64) -> f64 {
     a * e
 }
 
-/// Flattening is another way to explain what eccentricity does for an ellipse 
+/// Flattening is another way to explain what eccentricity does for an ellipse
 pub fn flattening(a: f64, e: f64) -> f64 {
     let b = semi_minor_axis(a, e);
 
     (a - b) / a
-}  
+}
 
 pub fn parse_csv(filename: &str) -> std::vec::Vec<csv::StringRecord> {
-    let mut vec = vec!();
-    let mut rdr = csv::ReaderBuilder::new().delimiter(b',').terminator(csv::Terminator::Any(b'\n')).has_headers(false).from_path(filename).unwrap();
+    let mut vec = vec![];
+    let mut rdr = csv::ReaderBuilder::new()
+        .delimiter(b',')
+        .terminator(csv::Terminator::Any(b'\n'))
+        .has_headers(false)
+        .from_path(filename)
+        .unwrap();
     for result in rdr.records() {
         if let Result::Ok(record) = result {
             vec.push(record);
@@ -489,20 +504,25 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct Collums {
-    ra_j2000: f32,
-    dec_j2000: f32,
-    hip: u32,
-    name: String,
-    pm_ra_j2000: f32,
-    pm_dec_j2000: f32,
-    plx_j2000: f32,
-    rv_j2000: f32,
-    vmag_j2000: f32,
-} 
+    pub ra_j2000: f32,
+    pub dec_j2000: f32,
+    pub hip: u32,
+    pub name: String,
+    pub pm_ra_j2000: f32,
+    pub pm_dec_j2000: f32,
+    pub plx_j2000: f32,
+    pub rv_j2000: f32,
+    pub vmag_j2000: f32,
+}
 
 pub fn parse_csv_deserialize(filename: &str) -> std::vec::Vec<Collums> {
-    let mut vec = vec!();
-    let mut rdr = csv::ReaderBuilder::new().delimiter(b',').terminator(csv::Terminator::Any(b'\n')).has_headers(false).from_path(filename).unwrap();
+    let mut vec = vec![];
+    let mut rdr = csv::ReaderBuilder::new()
+        .delimiter(b',')
+        .terminator(csv::Terminator::Any(b'\n'))
+        .has_headers(false)
+        .from_path(filename)
+        .unwrap();
     for result in rdr.deserialize() {
         let record: Collums = result.unwrap();
         vec.push(record);
@@ -512,15 +532,15 @@ pub fn parse_csv_deserialize(filename: &str) -> std::vec::Vec<Collums> {
 
 /*
 pub fn above(
-    radius_primary: f64, 
-    observers_longitude_primary: f64, 
-    observers_latitude_primary: f64, 
+    radius_primary: f64,
+    observers_longitude_primary: f64,
+    observers_latitude_primary: f64,
     obliquity_of_the_ecliptic_primary: f64,
     rotation_rate_primary: f64,
     lotn_primary: f64,
     aop_primary: f64,
     i_primary: f64,
-    distance: f64, 
+    distance: f64,
     a_companion: f64,
     e_companion: f64,
     period_companion: f64,
@@ -530,7 +550,6 @@ pub fn above(
     i_companion: f64,
 
 ) {
-    
     let observer_declination =  ((observers_latitude_primary.sin() * obliquity_of_the_ecliptic_primary.cos()) + (observers_latitude_primary.cos() * obliquity_of_the_ecliptic_primary.sin() * observers_longitude_primary.sin())).asin();
     let observer_right_ascension = ((observers_latitude_primary.cos() * observers_longitude_primary.cos()) / observer_declination.cos()).acos();
 
@@ -543,7 +562,6 @@ pub fn above(
     let new_companion_rotation = companion_rotation - primary_rotation;
 
     let companion_position = companion_relative_position(a_companion, e_companion, period_companion, t_p_companion, lotn_companion, aop_companion, i_companion);
-    
     let primary_velocity = (2. * std::f64::consts::PI * radius_primary) / rotation_rate_primary;
 }
 */

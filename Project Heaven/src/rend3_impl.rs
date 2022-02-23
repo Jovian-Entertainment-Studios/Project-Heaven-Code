@@ -56,10 +56,15 @@ impl rend3_framework::App for Rendering {
         // Create mesh and calculate smooth normals based on vertices.
         //
         // We do not need to keep these handles alive once we make the object
-        let (mesh, material) = load_gltf(
+        let (sphere_mesh, material) = load_gltf(
+            renderer,
+            concat!(env!("CARGO_MANIFEST_DIR"), "/src/data/3d/Sphere.glb"),
+        );
+        let (mesh, material2) = load_gltf(
             renderer,
             concat!(env!("CARGO_MANIFEST_DIR"), "/src/data/3d/Asteroids.glb"),
         );
+        let star_data = spv_rs::parse_csv_deserialize("src/data/stars/FK6.csv");
 
         // Add PBR material with all defaults except a single color.
         let material = rend3_routine::pbr::PbrMaterial {
@@ -70,9 +75,7 @@ impl rend3_framework::App for Rendering {
         let material_handle = renderer.add_material(material);
 
         //let position = spv_rs::companion_relative_position(a, e, period, t_p, lotn, aop, i);
-
-        // Combine the mesh and the material with a location to give an object.
-        let object = rend3::types::Object {
+        let player = rend3::types::Object {
             mesh_kind: rend3::types::ObjectMeshKind::Static(mesh),
             material: material_handle.clone(),
             transform: glam::Mat4::from_scale_rotation_translation(
@@ -81,12 +84,22 @@ impl rend3_framework::App for Rendering {
                 glam::Vec3::new(0.0, 0.0, 0.0),
             ),
         };
+        let mut _object_handle = renderer.add_object(player);
 
-        let (scale, rotation, position) =
-            glam::Mat4::to_scale_rotation_translation(&object.transform);
-
-        // We need to keep the object alive.
-        let _object_handle = renderer.add_object(object);
+        for i in star_data {
+            // Combine the mesh and the material with a location to give an object.
+            let object = rend3::types::Object {
+                mesh_kind: rend3::types::ObjectMeshKind::Static(sphere_mesh.clone()),
+                material: material_handle.clone(),
+                transform: glam::Mat4::from_scale_rotation_translation(
+                    glam::Vec3::new(1.0, 1.0, -1.0),
+                    rend3::types::glam::Quat::IDENTITY,
+                    spv_rs::position(i.plx_j2000, i.ra_j2000, i.dec_j2000),
+                ),
+            };
+            // We need to keep the object alive.
+            _object_handle = renderer.add_object(object);
+        }
 
         //self.object_handle = Some(renderer.add_object(object));
         let view_location = glam::Vec3::new(3.0, 3.0, -5.0);
