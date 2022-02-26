@@ -23,7 +23,7 @@ pub fn load_gltf(
         .collect();
     let vertex_tangents: Vec<_> = reader
         .read_tangents()
-        .unwrap()
+        .expect("not those fucking tangents again")
         .map(glam::Vec4::from)
         .map(glam::Vec4::truncate)
         .collect();
