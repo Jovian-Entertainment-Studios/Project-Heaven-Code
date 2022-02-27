@@ -92,7 +92,7 @@ impl rend3_framework::App for Rendering {
             mesh_kind: rend3::types::ObjectMeshKind::Static(mesh),
             material: player_material_handle.clone(),
             transform: glam::Mat4::from_scale_rotation_translation(
-                glam::Vec3::new(0.1, 0.1, -0.1),
+                glam::Vec3::new(0.01, 0.01, -0.01),
                 rend3::types::glam::Quat::IDENTITY,
                 glam::Vec3::new(0.0, 0.0, 0.0),
             ),
