@@ -2,9 +2,6 @@ use egui::{FontDefinitions, FontFamily};
 use std::borrow::Cow;
 use std::sync::Arc;
 
-mod mesh_generator;
-use mesh_generator::create_mesh;
-
 mod mesh_importer;
 use mesh_importer::load_gltf;
 
@@ -26,6 +23,7 @@ pub struct Rendering {
     data: Option<RenderingData>,
     menu_toggle: bool,
     gltf_cube_toggle: bool,
+    project_heaven_logo: egui::TextureId,
 }
 impl rend3_framework::App for Rendering {
     const HANDEDNESS: rend3::types::Handedness = rend3::types::Handedness::Left;
@@ -44,7 +42,7 @@ impl rend3_framework::App for Rendering {
         let window_size = window.inner_size();
 
         // Create the egui render routine
-        let egui_routine = rend3_egui::EguiRenderRoutine::new(
+        let mut egui_routine = rend3_egui::EguiRenderRoutine::new(
             renderer,
             surface_format,
             rend3::types::SampleCount::One,
@@ -55,7 +53,7 @@ impl rend3_framework::App for Rendering {
         // Create mesh and calculate smooth normals based on vertices.
         //
         // We do not need to keep these handles alive once we make the object
-        let (mesh, material) = load_gltf(
+        let (mesh, _material) = load_gltf(
             renderer,
             concat!(env!("CARGO_MANIFEST_DIR"), "/src/data/3d/Asteroids.glb"),
         );
@@ -176,6 +174,25 @@ impl rend3_framework::App for Rendering {
                 font_definitions: font,
                 style: style,
             });
+
+        //Images
+        let image_bytes = include_bytes!("data/images/icon_round.png");
+        let image_image = image::load_from_memory(image_bytes).unwrap();
+        let image_rgba = image_image.as_rgba8().unwrap();
+
+        use image::GenericImageView;
+        let dimensions = image_image.dimensions();
+
+        let format = wgpu::TextureFormat::Rgba8UnormSrgb;
+
+        self.project_heaven_logo = rend3_egui::EguiRenderRoutine::create_egui_texture(
+            &mut egui_routine.internal,
+            renderer,
+            format,
+            image_rgba,
+            dimensions,
+            Some("project_heaven_logo"),
+        );
 
         let start_time = instant::Instant::now();
         let color: [f32; 4] = [0.0, 0.5, 0.5, 1.0];
