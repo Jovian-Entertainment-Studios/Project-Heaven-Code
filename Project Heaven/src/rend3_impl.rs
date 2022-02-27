@@ -165,7 +165,7 @@ impl rend3_framework::App for Rendering {
 
         style.visuals.override_text_color = Some(egui::Color32::from_rgb(255, 255, 255));
 
-        style.visuals.window_corner_radius = 0.01;
+        style.visuals.window_corner_radius = 0.1;
 
         style.visuals.button_frame = true;
 
@@ -231,17 +231,17 @@ impl rend3_framework::App for Rendering {
             color: egui::Color32::from_rgb(0, 0, 255),
         };
 
-        style.visuals.widgets.noninteractive.corner_radius = 0.01;
+        style.visuals.widgets.noninteractive.corner_radius = 0.1;
 
-        style.visuals.widgets.active.corner_radius = 0.01;
+        style.visuals.widgets.active.corner_radius = 0.1;
 
-        style.visuals.widgets.hovered.corner_radius = 0.01;
+        style.visuals.widgets.hovered.corner_radius = 0.1;
 
-        style.visuals.widgets.inactive.corner_radius = 0.01;
+        style.visuals.widgets.inactive.corner_radius = 0.1;
 
-        style.visuals.widgets.open.corner_radius = 0.01;
+        style.visuals.widgets.open.corner_radius = 0.1;
 
-        let font_dejavusansmono = include_bytes!("data/fonts/DejaVuSansMono.ttf");
+        let font_dejavusansmono = include_bytes!("data/fonts/Section9-4lXp.ttf");
         let mut font = FontDefinitions::default();
 
         font.font_data.insert(
@@ -258,16 +258,6 @@ impl rend3_framework::App for Rendering {
             FontFamily::Proportional,
             vec!["DejaVu Sans Mono".to_string()],
         );
-        /*
-        font.family_and_size.insert(
-            epaint::text::TextStyle::Body,
-            (epaint::text::FontFamily::Proportional, 10.0),
-        );
-        font.family_and_size.insert(
-            epaint::text::TextStyle::Body,
-            (epaint::text::FontFamily::Monospace, 10.0),
-        );
-        */
 
         // Create the winit/egui integration, which manages our egui context for us.
         let platform =

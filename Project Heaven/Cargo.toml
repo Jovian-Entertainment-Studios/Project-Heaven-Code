@@ -13,6 +13,7 @@ wgpu = "0.12"
 egui_wgpu_backend = "0.16.0"
 egui = "0.16.0"
 epi = "0.16.0"
+epaint = "0.16.0"
 egui_winit_platform = "0.13.0"
 env_logger = { version = "0.9", default-features = false, features = ["termcolor", "atty"] }
 glam = "0.20.0"
