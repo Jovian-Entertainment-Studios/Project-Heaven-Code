@@ -1,11 +1,22 @@
 use egui::{FontDefinitions, FontFamily};
 use std::borrow::Cow;
 use std::sync::Arc;
+use serde::Deserialize;
 
 mod physics;
 
 mod mesh_importer;
 use mesh_importer::load_gltf;
+
+#[derive(Deserialize)]
+struct StarData {
+    ra: f64,
+    dec: f64,
+    plx: f64,
+    pmra: f64,
+    pmdec: f64,
+    rv: f64,
+}
 
 struct RenderingData {
     _object_handle: std::vec::Vec<rend3::types::ObjectHandle>,
@@ -66,8 +77,8 @@ impl rend3_framework::App for Rendering {
             concat!(env!("CARGO_MANIFEST_DIR"), "/src/data/3d/Heaven1.glb"),
         );
 
-        let mut star_data = vec![];
-        match spv_rs::input_data::parse_csv_deserialize("src/data/stars/FK6.csv") {
+        let mut star_data: std::vec::Vec<StarData> = vec![];
+        match spv_rs::input_data::parse_csv("src/data/stars/edr3.csv") {
             Ok(vec) => star_data = vec,
             Err(ex) => {
                 println!("ERROR -> {}", ex);
@@ -118,9 +129,9 @@ impl rend3_framework::App for Rendering {
                     glam::Vec3::new(1.0, 1.0, -1.0),
                     rend3::types::glam::Quat::IDENTITY,
                     spv_rs::position::position_f32(
-                        i.plx_j2000 * 500000000000000.,
-                        i.ra_j2000,
-                        i.dec_j2000,
+                        i.plx as f32 * 5000000000000000.,
+                        i.ra  as f32,
+                        i.dec  as f32,
                     ),
                 ),
             };
