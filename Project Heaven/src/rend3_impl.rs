@@ -13,9 +13,6 @@ struct StarData {
     ra: f64,
     dec: f64,
     plx: f64,
-    pmra: f64,
-    pmdec: f64,
-    rv: f64,
 }
 
 struct RenderingData {
@@ -78,7 +75,7 @@ impl rend3_framework::App for Rendering {
         );
 
         let mut star_data: std::vec::Vec<StarData> = vec![];
-        match spv_rs::input_data::parse_csv("src/data/stars/edr3.csv") {
+        match spv_rs::input_data::parse_csv("src/data/stars/edr3_10plx.csv") {
             Ok(vec) => star_data = vec,
             Err(ex) => {
                 println!("ERROR -> {}", ex);
@@ -95,7 +92,7 @@ impl rend3_framework::App for Rendering {
         };
 
         let player_material = rend3_routine::pbr::PbrMaterial {
-            albedo: rend3_routine::pbr::AlbedoComponent::Value(glam::Vec4::new(0.0, 0.5, 0.5, 1.0)),
+            albedo: rend3_routine::pbr::AlbedoComponent::Value(glam::Vec4::new(0.0, 0.0, 0.0, 0.0)),
             transparency: rend3_routine::pbr::Transparency::Blend,
             ..rend3_routine::pbr::PbrMaterial::default()
         };
@@ -129,7 +126,7 @@ impl rend3_framework::App for Rendering {
                     glam::Vec3::new(1.0, 1.0, -1.0),
                     rend3::types::glam::Quat::IDENTITY,
                     spv_rs::position::position_f32(
-                        i.plx as f32 * 5000000000000000.,
+                        i.plx as f32 * 100000000000000.,
                         i.ra  as f32,
                         i.dec  as f32,
                     ),
