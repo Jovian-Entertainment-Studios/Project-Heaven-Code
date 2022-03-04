@@ -1,7 +1,7 @@
 use egui::{FontDefinitions, FontFamily};
+use serde::Deserialize;
 use std::borrow::Cow;
 use std::sync::Arc;
-use serde::Deserialize;
 
 mod physics;
 
@@ -13,6 +13,7 @@ struct StarData {
     ra: f64,
     dec: f64,
     plx: f64,
+    gmag: f64,
 }
 
 struct RenderingData {
@@ -66,7 +67,7 @@ impl rend3_framework::App for Rendering {
         // We do not need to keep these handles alive once we make the object
         let (sphere_mesh, _material) = load_gltf(
             renderer,
-            concat!(env!("CARGO_MANIFEST_DIR"), "/src/data/3d/Sphere.glb"),
+            concat!(env!("CARGO_MANIFEST_DIR"), "/src/data/3d/Sphere_low.glb"),
         );
 
         let (player_mesh, _material) = load_gltf(
@@ -75,7 +76,7 @@ impl rend3_framework::App for Rendering {
         );
 
         let mut star_data: std::vec::Vec<StarData> = vec![];
-        match spv_rs::input_data::parse_csv("src/data/stars/edr3_10plx.csv") {
+        match spv_rs::input_data::parse_csv("src/data/stars/edr3_10plx_gmag.csv") {
             Ok(vec) => star_data = vec,
             Err(ex) => {
                 println!("ERROR -> {}", ex);
@@ -83,14 +84,6 @@ impl rend3_framework::App for Rendering {
         };
 
         // Add PBR material with all defaults except a single color.
-        let star_material = rend3_routine::pbr::PbrMaterial {
-            albedo: rend3_routine::pbr::AlbedoComponent::Value(glam::Vec4::new(0.0, 0.0, 0.0, 0.0)),
-            emissive: rend3_routine::pbr::MaterialComponent::Value(glam::Vec3::new(
-                0.98, 0.94, 0.93,
-            )),
-            ..rend3_routine::pbr::PbrMaterial::default()
-        };
-
         let player_material = rend3_routine::pbr::PbrMaterial {
             albedo: rend3_routine::pbr::AlbedoComponent::Value(glam::Vec4::new(0.0, 0.0, 0.0, 0.0)),
             transparency: rend3_routine::pbr::Transparency::Blend,
@@ -99,10 +92,7 @@ impl rend3_framework::App for Rendering {
 
         let player_material_handle = renderer.add_material(player_material);
 
-        let _material_handle = renderer.add_material(star_material);
-
         let mut material_vec = Vec::new();
-        material_vec.push(_material_handle.clone());
 
         let player = rend3::types::Object {
             mesh_kind: rend3::types::ObjectMeshKind::Static(player_mesh),
@@ -118,22 +108,39 @@ impl rend3_framework::App for Rendering {
         object_vec.push(renderer.add_object(player));
 
         for i in star_data {
-            // Combine the mesh and the material with a location to give an object.
-            let object = rend3::types::Object {
-                mesh_kind: rend3::types::ObjectMeshKind::Static(sphere_mesh.clone()),
-                material: _material_handle.clone(),
-                transform: glam::Mat4::from_scale_rotation_translation(
-                    glam::Vec3::new(1.0, 1.0, -1.0),
-                    rend3::types::glam::Quat::IDENTITY,
-                    spv_rs::position::position_f32(
-                        i.plx as f32 * 100000000000000.,
-                        i.ra  as f32,
-                        i.dec  as f32,
+            if i.gmag > 0. {
+                let val = i.gmag as f32 * 0.1;
+                let star_material = rend3_routine::pbr::PbrMaterial {
+                    albedo: rend3_routine::pbr::AlbedoComponent::Value(glam::Vec4::new(
+                        0.0, 0.0, 0.0, 0.0,
+                    )),
+                    emissive: rend3_routine::pbr::MaterialComponent::Value(glam::Vec3::new(
+                        val, val, val,
+                    )),
+                    ..rend3_routine::pbr::PbrMaterial::default()
+                };
+
+                let _material_handle = renderer.add_material(star_material);
+
+                // Combine the mesh and the material with a location to give an object.
+                let object = rend3::types::Object {
+                    mesh_kind: rend3::types::ObjectMeshKind::Static(sphere_mesh.clone()),
+                    material: _material_handle.clone(),
+                    transform: glam::Mat4::from_scale_rotation_translation(
+                        glam::Vec3::new(1.0, 1.0, -1.0),
+                        rend3::types::glam::Quat::IDENTITY,
+                        spv_rs::position::position_f32(
+                            i.plx as f32 * 100000000000000.,
+                            i.ra as f32,
+                            i.dec as f32,
+                        ),
                     ),
-                ),
-            };
-            // We need to keep the object alive.
-            object_vec.push(renderer.add_object(object));
+                };
+                // We need to keep the object alive.
+                object_vec.push(renderer.add_object(object));
+                material_vec.push(_material_handle.clone());
+            } else {
+            }
         }
 
         //self.object_handle = Some(renderer.add_object(object));
