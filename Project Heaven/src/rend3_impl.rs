@@ -1,12 +1,22 @@
 use egui::{FontDefinitions, FontFamily};
+use glam::{DVec2, Mat3A, Mat4, Vec3A};
+use instant::Instant;
+use rend3::util::typedefs::FastHashMap;
 use serde::Deserialize;
 use std::borrow::Cow;
-use std::sync::Arc;
+use std::{collections::HashMap, hash::BuildHasher, sync::Arc};
+use winit::event::{ElementState, KeyboardInput, MouseButton};
 
 mod physics;
 
+mod platform;
+
 mod mesh_importer;
 use mesh_importer::load_gltf;
+
+fn button_pressed<Hash: BuildHasher>(map: &HashMap<u32, bool, Hash>, key: u32) -> bool {
+    map.get(&key).map_or(false, |b| *b)
+}
 
 #[derive(Deserialize)]
 struct StarData {
@@ -26,17 +36,32 @@ struct RenderingData {
     platform: egui_winit_platform::Platform,
     start_time: instant::Instant,
     color: [f32; 4],
+
+    absolute_mouse: bool,
+    walk_speed: f32,
+    run_speed: f32,
+
+    camera_pitch: f32,
+    camera_yaw: f32,
+    camera_location: Vec3A,
+    timestamp_last_frame: Instant,
+    last_mouse_delta: Option<DVec2>,
 }
 
 const SAMPLE_COUNT: rend3::types::SampleCount = rend3::types::SampleCount::One;
 
 #[derive(Default)]
 pub struct Rendering {
-    data: Option<RenderingData>,
     menu_toggle: bool,
     gltf_cube_toggle: bool,
     project_heaven_logo: egui::TextureId,
+
+    grabber: Option<rend3_framework::Grabber>,
+    scancode_status: FastHashMap<u32, bool>,
+
+    data: Option<RenderingData>,
 }
+
 impl rend3_framework::App for Rendering {
     const HANDEDNESS: rend3::types::Handedness = rend3::types::Handedness::Left;
 
@@ -51,6 +76,8 @@ impl rend3_framework::App for Rendering {
         _routines: &Arc<rend3_framework::DefaultRoutines>,
         surface_format: rend3::types::TextureFormat,
     ) {
+        self.grabber = Some(rend3_framework::Grabber::new(window));
+
         let window_size = window.inner_size();
 
         // Create the egui render routine
@@ -76,7 +103,12 @@ impl rend3_framework::App for Rendering {
         );
 
         let mut star_data: std::vec::Vec<StarData> = vec![];
-        match spv_rs::input_data::parse_csv("src/data/stars/edr3_10plx_gmag.csv") {
+        match spv_rs::input_data::parse_csv(
+            "src/data/stars/edr3_10plx_gmag.csv",
+            false,
+            b',',
+            b'\n',
+        ) {
             Ok(vec) => star_data = vec,
             Err(ex) => {
                 println!("ERROR -> {}", ex);
@@ -108,7 +140,7 @@ impl rend3_framework::App for Rendering {
         object_vec.push(renderer.add_object(player));
 
         for i in star_data {
-            if i.gmag > 0. {
+            if i.gmag < 7. {
                 let val = i.gmag as f32 * 0.1;
                 let star_material = rend3_routine::pbr::PbrMaterial {
                     albedo: rend3_routine::pbr::AlbedoComponent::Value(glam::Vec4::new(
@@ -127,10 +159,10 @@ impl rend3_framework::App for Rendering {
                     mesh_kind: rend3::types::ObjectMeshKind::Static(sphere_mesh.clone()),
                     material: _material_handle.clone(),
                     transform: glam::Mat4::from_scale_rotation_translation(
-                        glam::Vec3::new(1.0, 1.0, -1.0),
+                        glam::Vec3::new(100000000000000.0, 100000000000000.0, -100000000000000.0),
                         rend3::types::glam::Quat::IDENTITY,
                         spv_rs::position::position_f32(
-                            i.plx as f32 * 100000000000000.,
+                            i.plx as f32,
                             i.ra as f32,
                             i.dec as f32,
                         ),
@@ -316,6 +348,16 @@ impl rend3_framework::App for Rendering {
             platform,
             start_time,
             color,
+
+            absolute_mouse: true,
+            walk_speed: 10.,
+            run_speed: 20.,
+
+            camera_pitch: 0.,
+            camera_yaw: 0.,
+            camera_location: glam::Vec3A::new(3.0, 3.0, -5.0),
+            timestamp_last_frame: start_time,
+            last_mouse_delta: Some(glam::DVec2::new(0., 0.)),
         })
     }
 
@@ -334,6 +376,47 @@ impl rend3_framework::App for Rendering {
 
         // Pass the winit events to the platform integration.
         data.platform.handle_event(&event);
+
+        let now = Instant::now();
+        let delta_time = now - data.timestamp_last_frame;
+
+        let rotation = Mat3A::from_euler(
+            glam::EulerRot::XYZ,
+            -data.camera_pitch,
+            -data.camera_yaw,
+            0.0,
+        )
+        .transpose();
+        let forward = -rotation.z_axis;
+        let up = rotation.y_axis;
+        let side = -rotation.x_axis;
+        let velocity = if button_pressed(&self.scancode_status, platform::Scancodes::SHIFT) {
+            data.run_speed
+        } else {
+            data.walk_speed
+        };
+        if button_pressed(&self.scancode_status, platform::Scancodes::W) {
+            data.camera_location += forward * velocity * delta_time.as_secs_f32();
+        }
+        if button_pressed(&self.scancode_status, platform::Scancodes::S) {
+            data.camera_location -= forward * velocity * delta_time.as_secs_f32();
+        }
+        if button_pressed(&self.scancode_status, platform::Scancodes::A) {
+            data.camera_location += side * velocity * delta_time.as_secs_f32();
+        }
+        if button_pressed(&self.scancode_status, platform::Scancodes::D) {
+            data.camera_location -= side * velocity * delta_time.as_secs_f32();
+        }
+        if button_pressed(&self.scancode_status, platform::Scancodes::Q) {
+            data.camera_location += up * velocity * delta_time.as_secs_f32();
+        }
+        if button_pressed(&self.scancode_status, platform::Scancodes::Z) {
+            data.camera_location -= up * velocity * delta_time.as_secs_f32();
+        }
+
+        if button_pressed(&self.scancode_status, platform::Scancodes::ESCAPE) {
+            self.grabber.as_mut().unwrap().request_ungrab(window);
+        }
 
         match event {
             rend3_framework::Event::RedrawRequested(..) => {
@@ -388,6 +471,22 @@ impl rend3_framework::App for Rendering {
                     context: data.platform.context(),
                 };
 
+                let view = Mat4::from_euler(
+                    glam::EulerRot::XYZ,
+                    -data.camera_pitch,
+                    -data.camera_yaw,
+                    0.0,
+                );
+                let view = view * Mat4::from_translation((-data.camera_location).into());
+
+                renderer.set_camera_data(rend3::types::Camera {
+                    projection: rend3::types::CameraProjection::Perspective {
+                        vfov: 60.0,
+                        near: 0.1,
+                    },
+                    view,
+                });
+
                 // Get a frame
                 let frame = rend3::util::output::OutputFrame::Surface {
                     surface: Arc::clone(surface.unwrap()),
@@ -422,11 +521,90 @@ impl rend3_framework::App for Rendering {
                 // Dispatch a render using the built up rendergraph!
                 graph.execute(renderer, frame, cmd_bufs, &ready);
 
-                control_flow(winit::event_loop::ControlFlow::Poll);
-            }
-            rend3_framework::Event::MainEventsCleared => {
                 window.request_redraw();
+                control_flow(winit::event_loop::ControlFlow::Poll);
+                
             }
+            rend3_framework::Event::WindowEvent {
+                event: winit::event::WindowEvent::Focused(focus),
+                ..
+            } => {
+                if !focus {
+                    self.grabber.as_mut().unwrap().request_ungrab(window);
+                }
+            }
+            rend3_framework::Event::WindowEvent {
+                event:
+                    winit::event::WindowEvent::KeyboardInput {
+                        input:
+                            KeyboardInput {
+                                scancode, state, ..
+                            },
+                        ..
+                    },
+                ..
+            } => {
+                self.scancode_status.insert(
+                    scancode,
+                    match state {
+                        winit::event::ElementState::Pressed => true,
+                        winit::event::ElementState::Released => false,
+                    },
+                );
+            }
+            rend3_framework::Event::WindowEvent {
+                event:
+                    winit::event::WindowEvent::MouseInput {
+                        button: MouseButton::Left,
+                        state: ElementState::Pressed,
+                        ..
+                    },
+                ..
+            } => {
+                let grabber = self.grabber.as_mut().unwrap();
+
+                if !grabber.grabbed() {
+                    grabber.request_grab(window);
+                }
+            }
+            rend3_framework::Event::DeviceEvent {
+                event:
+                    winit::event::DeviceEvent::MouseMotion {
+                        delta: (delta_x, delta_y),
+                        ..
+                    },
+                ..
+            } => {
+                if !self.grabber.as_ref().unwrap().grabbed() {
+                    return;
+                }
+
+                const TAU: f32 = std::f32::consts::PI * 2.0;
+
+                let mouse_delta = if data.absolute_mouse {
+                    let prev = data.last_mouse_delta.replace(DVec2::new(delta_x, delta_y));
+                    if let Some(prev) = prev {
+                        (DVec2::new(delta_x, delta_y) - prev) / 4.0
+                    } else {
+                        return;
+                    }
+                } else {
+                    DVec2::new(delta_x, delta_y)
+                };
+
+                data.camera_yaw -= (mouse_delta.x / 1000.0) as f32;
+                data.camera_pitch -= (mouse_delta.y / 1000.0) as f32;
+                if data.camera_yaw < 0.0 {
+                    data.camera_yaw += TAU;
+                } else if data.camera_yaw >= TAU {
+                    data.camera_yaw -= TAU;
+                }
+                data.camera_pitch = data
+                    .camera_pitch
+                    .max(-std::f32::consts::FRAC_PI_2 + 0.0001)
+                    .min(std::f32::consts::FRAC_PI_2 - 0.0001);
+            }
+            
             rend3_framework::Event::WindowEvent { event, .. } => match event {
                 winit::event::WindowEvent::Resized(size) => {
                     data.egui_routine
