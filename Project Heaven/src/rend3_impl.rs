@@ -140,14 +140,14 @@ impl rend3_framework::App for Rendering {
         object_vec.push(renderer.add_object(player));
 
         for i in star_data {
-            if i.gmag < 7. {
+            if i.gmag < 8. {
                 let val = i.gmag as f32 * 0.1;
                 let star_material = rend3_routine::pbr::PbrMaterial {
                     albedo: rend3_routine::pbr::AlbedoComponent::Value(glam::Vec4::new(
-                        0.0, 0.0, 0.0, 0.0,
+                        1.0, 1.0, 1.0, 1.0,
                     )),
                     emissive: rend3_routine::pbr::MaterialComponent::Value(glam::Vec3::new(
-                        val, val, val,
+                        1.0, 1.0, 1.0,
                     )),
                     ..rend3_routine::pbr::PbrMaterial::default()
                 };
@@ -159,7 +159,7 @@ impl rend3_framework::App for Rendering {
                     mesh_kind: rend3::types::ObjectMeshKind::Static(sphere_mesh.clone()),
                     material: _material_handle.clone(),
                     transform: glam::Mat4::from_scale_rotation_translation(
-                        glam::Vec3::new(100000000000000.0, 100000000000000.0, -100000000000000.0),
+                        glam::Vec3::new(696000000000000.0, 696000000000000.0, -696000000000000.0),
                         rend3::types::glam::Quat::IDENTITY,
                         spv_rs::position::position_f32(
                             i.plx as f32,
@@ -174,20 +174,6 @@ impl rend3_framework::App for Rendering {
             } else {
             }
         }
-
-        //self.object_handle = Some(renderer.add_object(object));
-        let view_location = glam::Vec3::new(3.0, 3.0, -5.0);
-        let view = glam::Mat4::from_euler(glam::EulerRot::XYZ, -0.55, 0.5, 0.0);
-        let view = view * glam::Mat4::from_translation(-view_location);
-
-        // Set camera's location
-        renderer.set_camera_data(rend3::types::Camera {
-            projection: rend3::types::CameraProjection::Perspective {
-                vfov: 60.0,
-                near: 0.1,
-            },
-            view,
-        });
 
         // Create a single directional light
         //
@@ -349,9 +335,9 @@ impl rend3_framework::App for Rendering {
             start_time,
             color,
 
-            absolute_mouse: true,
-            walk_speed: 10.,
-            run_speed: 20.,
+            absolute_mouse: false,
+            walk_speed: 1000000000000.,
+            run_speed: 2000000000000.,
 
             camera_pitch: 0.,
             camera_yaw: 0.,
@@ -382,12 +368,12 @@ impl rend3_framework::App for Rendering {
 
         let rotation = Mat3A::from_euler(
             glam::EulerRot::XYZ,
-            -data.camera_pitch,
-            -data.camera_yaw,
+            data.camera_pitch,
+            data.camera_yaw,
             0.0,
         )
         .transpose();
-        let forward = -rotation.z_axis;
+        let forward = rotation.z_axis;
         let up = rotation.y_axis;
         let side = -rotation.x_axis;
         let velocity = if button_pressed(&self.scancode_status, platform::Scancodes::SHIFT) {
@@ -473,8 +459,8 @@ impl rend3_framework::App for Rendering {
 
                 let view = Mat4::from_euler(
                     glam::EulerRot::XYZ,
-                    -data.camera_pitch,
-                    -data.camera_yaw,
+                    data.camera_pitch,
+                    data.camera_yaw,
                     0.0,
                 );
                 let view = view * Mat4::from_translation((-data.camera_location).into());
