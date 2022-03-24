@@ -43,6 +43,8 @@ struct RenderingData {
 
     camera_pitch: f32,
     camera_yaw: f32,
+    camera_roll: f32,
+
     camera_location: Vec3A,
     timestamp_last_frame: Instant,
     last_mouse_delta: Option<DVec2>,
@@ -140,7 +142,7 @@ impl rend3_framework::App for Rendering {
         object_vec.push(renderer.add_object(player));
 
         for i in star_data {
-            if i.gmag < 8. {
+            if i.gmag < 7. {
                 let val = i.gmag as f32 * 0.1;
                 let star_material = rend3_routine::pbr::PbrMaterial {
                     albedo: rend3_routine::pbr::AlbedoComponent::Value(glam::Vec4::new(
@@ -336,11 +338,13 @@ impl rend3_framework::App for Rendering {
             color,
 
             absolute_mouse: false,
-            walk_speed: 1000000000000.,
-            run_speed: 2000000000000.,
+            walk_speed: 5000000000000.,
+            run_speed: 10000000000000.,
 
             camera_pitch: 0.,
             camera_yaw: 0.,
+            camera_roll: 0.,
+
             camera_location: glam::Vec3A::new(3.0, 3.0, -5.0),
             timestamp_last_frame: start_time,
             last_mouse_delta: Some(glam::DVec2::new(0., 0.)),
@@ -370,7 +374,7 @@ impl rend3_framework::App for Rendering {
             glam::EulerRot::XYZ,
             data.camera_pitch,
             data.camera_yaw,
-            0.0,
+            data.camera_roll,
         )
         .transpose();
         let forward = rotation.z_axis;
@@ -393,11 +397,17 @@ impl rend3_framework::App for Rendering {
         if button_pressed(&self.scancode_status, platform::Scancodes::D) {
             data.camera_location -= side * velocity * delta_time.as_secs_f32();
         }
-        if button_pressed(&self.scancode_status, platform::Scancodes::Q) {
+        if button_pressed(&self.scancode_status, platform::Scancodes::SPACE) {
             data.camera_location += up * velocity * delta_time.as_secs_f32();
         }
-        if button_pressed(&self.scancode_status, platform::Scancodes::Z) {
+        if button_pressed(&self.scancode_status, platform::Scancodes::CTRL) {
             data.camera_location -= up * velocity * delta_time.as_secs_f32();
+        }
+        if button_pressed(&self.scancode_status, platform::Scancodes::Q) {
+            data.camera_roll += 0.001 * delta_time.as_secs_f32();
+        }
+        if button_pressed(&self.scancode_status, platform::Scancodes::E) {
+            data.camera_roll -= 0.001 * delta_time.as_secs_f32();
         }
 
         if button_pressed(&self.scancode_status, platform::Scancodes::ESCAPE) {
@@ -461,7 +471,7 @@ impl rend3_framework::App for Rendering {
                     glam::EulerRot::XYZ,
                     data.camera_pitch,
                     data.camera_yaw,
-                    0.0,
+                    data.camera_roll,
                 );
                 let view = view * Mat4::from_translation((-data.camera_location).into());
 

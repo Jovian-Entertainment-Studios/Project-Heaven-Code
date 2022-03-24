@@ -18,6 +18,9 @@ cfg_if::cfg_if!(
             pub const SHIFT: u32 = 0x38;
             pub const ESCAPE: u32 = 0x35;
             pub const LALT: u32 = 0x3A; // Actually Left Option
+            pub const SPACE: u32 = 0x31;
+            pub const CTRL: u32 = 0x3B;
+            pub const E: u32 = 0x0E;
         }
     } else if #[cfg(target_arch = "wasm32")] {
         pub mod Scancodes {
@@ -35,6 +38,9 @@ cfg_if::cfg_if!(
             pub const SHIFT: u32 = 0x10;
             pub const ESCAPE: u32 = 0x1b;
             pub const LALT: u32 = 0x12;
+            pub const SPACE: u32 = 0x20;
+            pub const CTRL: u32 = 0x11;
+            pub const E: u32 = 0x45;
         }
     } else {
         pub mod Scancodes {
@@ -52,6 +58,9 @@ cfg_if::cfg_if!(
             pub const SHIFT: u32 = 0x2A;
             pub const ESCAPE: u32 = 0x01;
             pub const LALT: u32 = 0x38;
+            pub const SPACE: u32 = 0x20;
+            pub const CTRL: u32 = 0x00;
+            pub const E: u32 = 0x65;
         }
     }
 );
