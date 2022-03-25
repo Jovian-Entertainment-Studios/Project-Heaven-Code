@@ -374,7 +374,7 @@ impl rend3_framework::App for Rendering {
             glam::EulerRot::XYZ,
             data.camera_pitch,
             data.camera_yaw,
-            0.,
+            data.camera_roll,
         )
         .transpose();
         let forward = rotation.z_axis;
@@ -400,14 +400,14 @@ impl rend3_framework::App for Rendering {
         if button_pressed(&self.scancode_status, platform::Scancodes::SPACE) {
             data.camera_location += up * velocity * delta_time.as_secs_f32();
         }
-        if button_pressed(&self.scancode_status, platform::Scancodes::CTRL) {
+        if button_pressed(&self.scancode_status, platform::Scancodes::COMMA) {
             data.camera_location -= up * velocity * delta_time.as_secs_f32();
         }
         if button_pressed(&self.scancode_status, platform::Scancodes::Q) {
-            data.camera_roll += 0.00001 * delta_time.as_secs_f32();
+            data.camera_roll -= 0.0001 * delta_time.as_secs_f32();
         }
         if button_pressed(&self.scancode_status, platform::Scancodes::E) {
-            data.camera_roll -= 0.00001 * delta_time.as_secs_f32();
+            data.camera_roll += 0.0001 * delta_time.as_secs_f32();
         }
 
         if button_pressed(&self.scancode_status, platform::Scancodes::ESCAPE) {

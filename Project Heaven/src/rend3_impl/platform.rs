@@ -42,7 +42,7 @@ cfg_if::cfg_if!(
             pub const CTRL: u32 = 0x11;
             pub const E: u32 = 0x45;
         }
-    } else {
+    } else { /*https://www.win.tue.nl/~aeb/linux/kbd/scancodes-1.html*/
         pub mod Scancodes {
             pub const W: u32 = 0x11;
             pub const A: u32 = 0x1E;
@@ -58,9 +58,9 @@ cfg_if::cfg_if!(
             pub const SHIFT: u32 = 0x2A;
             pub const ESCAPE: u32 = 0x01;
             pub const LALT: u32 = 0x38;
-            pub const SPACE: u32 = 0x20;
-            pub const CTRL: u32 = 0x00;
-            pub const E: u32 = 0x65;
+            pub const SPACE: u32 = 0x39;
+            pub const CTRL: u32 = 0x1D;
+            pub const E: u32 = 0x12;
         }
     }
 );
