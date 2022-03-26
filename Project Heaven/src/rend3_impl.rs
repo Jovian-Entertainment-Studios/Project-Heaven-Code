@@ -37,15 +37,15 @@ struct RenderingData {
     start_time: instant::Instant,
     color: [f32; 4],
 
-    absolute_mouse: bool,
     walk_speed: f32,
     run_speed: f32,
 
     camera_pitch: f32,
     camera_yaw: f32,
+    camera_roll: f32,
+
     camera_location: Vec3A,
     timestamp_last_frame: Instant,
-    last_mouse_delta: Option<DVec2>,
 }
 
 const SAMPLE_COUNT: rend3::types::SampleCount = rend3::types::SampleCount::One;
@@ -140,8 +140,7 @@ impl rend3_framework::App for Rendering {
         object_vec.push(renderer.add_object(player));
 
         for i in star_data {
-            if i.gmag < 8. {
-                let val = i.gmag as f32 * 0.1;
+            if i.gmag < 7. {
                 let star_material = rend3_routine::pbr::PbrMaterial {
                     albedo: rend3_routine::pbr::AlbedoComponent::Value(glam::Vec4::new(
                         1.0, 1.0, 1.0, 1.0,
@@ -161,11 +160,7 @@ impl rend3_framework::App for Rendering {
                     transform: glam::Mat4::from_scale_rotation_translation(
                         glam::Vec3::new(696000000000000.0, 696000000000000.0, -696000000000000.0),
                         rend3::types::glam::Quat::IDENTITY,
-                        spv_rs::position::position_f32(
-                            i.plx as f32,
-                            i.ra as f32,
-                            i.dec as f32,
-                        ),
+                        spv_rs::position::position_f32(i.plx as f32, i.ra as f32, i.dec as f32),
                     ),
                 };
                 // We need to keep the object alive.
@@ -335,15 +330,15 @@ impl rend3_framework::App for Rendering {
             start_time,
             color,
 
-            absolute_mouse: false,
-            walk_speed: 1000000000000.,
-            run_speed: 2000000000000.,
+            walk_speed: 5000000000000.,
+            run_speed: 10000000000000.,
 
             camera_pitch: 0.,
             camera_yaw: 0.,
+            camera_roll: 0.,
+
             camera_location: glam::Vec3A::new(3.0, 3.0, -5.0),
             timestamp_last_frame: start_time,
-            last_mouse_delta: Some(glam::DVec2::new(0., 0.)),
         })
     }
 
@@ -366,13 +361,12 @@ impl rend3_framework::App for Rendering {
         let now = Instant::now();
         let delta_time = now - data.timestamp_last_frame;
 
-        let rotation = Mat3A::from_euler(
-            glam::EulerRot::XYZ,
-            data.camera_pitch,
-            data.camera_yaw,
-            0.0,
-        )
-        .transpose();
+        let z = Mat3A::from_euler(glam::EulerRot::XYZ, 0., 0., data.camera_roll);
+        let side = -z.x_axis;
+        let yz = Mat3A::from_axis_angle(side.into(), data.camera_pitch) * z;
+        let up = yz.y_axis;
+        let rotation = (Mat3A::from_axis_angle(up.into(), data.camera_yaw) * yz).transpose();
+
         let forward = rotation.z_axis;
         let up = rotation.y_axis;
         let side = -rotation.x_axis;
@@ -393,11 +387,17 @@ impl rend3_framework::App for Rendering {
         if button_pressed(&self.scancode_status, platform::Scancodes::D) {
             data.camera_location -= side * velocity * delta_time.as_secs_f32();
         }
-        if button_pressed(&self.scancode_status, platform::Scancodes::Q) {
+        if button_pressed(&self.scancode_status, platform::Scancodes::SPACE) {
             data.camera_location += up * velocity * delta_time.as_secs_f32();
         }
-        if button_pressed(&self.scancode_status, platform::Scancodes::Z) {
+        if button_pressed(&self.scancode_status, platform::Scancodes::COMMA) {
             data.camera_location -= up * velocity * delta_time.as_secs_f32();
+        }
+        if button_pressed(&self.scancode_status, platform::Scancodes::Q) {
+            data.camera_roll -= 0.0001 * delta_time.as_secs_f32();
+        }
+        if button_pressed(&self.scancode_status, platform::Scancodes::E) {
+            data.camera_roll += 0.0001 * delta_time.as_secs_f32();
         }
 
         if button_pressed(&self.scancode_status, platform::Scancodes::ESCAPE) {
@@ -457,12 +457,11 @@ impl rend3_framework::App for Rendering {
                     context: data.platform.context(),
                 };
 
-                let view = Mat4::from_euler(
-                    glam::EulerRot::XYZ,
-                    data.camera_pitch,
-                    data.camera_yaw,
-                    0.0,
-                );
+                let z = Mat4::from_euler(glam::EulerRot::XYZ, 0., 0., data.camera_roll);
+                let side = z.x_axis;
+                let yz = Mat4::from_axis_angle(side.truncate(), data.camera_pitch) * z;
+                let up = yz.y_axis;
+                let view = Mat4::from_axis_angle(up.truncate(), data.camera_yaw) * yz;
                 let view = view * Mat4::from_translation((-data.camera_location).into());
 
                 renderer.set_camera_data(rend3::types::Camera {
@@ -509,7 +508,6 @@ impl rend3_framework::App for Rendering {
 
                 window.request_redraw();
                 control_flow(winit::event_loop::ControlFlow::Poll);
-                
             }
             rend3_framework::Event::WindowEvent {
                 event: winit::event::WindowEvent::Focused(focus),
@@ -565,21 +563,12 @@ impl rend3_framework::App for Rendering {
                     return;
                 }
 
-                const TAU: f32 = std::f32::consts::PI * 2.0;
-
-                let mouse_delta = if data.absolute_mouse {
-                    let prev = data.last_mouse_delta.replace(DVec2::new(delta_x, delta_y));
-                    if let Some(prev) = prev {
-                        (DVec2::new(delta_x, delta_y) - prev) / 4.0
-                    } else {
-                        return;
-                    }
-                } else {
-                    DVec2::new(delta_x, delta_y)
-                };
+                let mouse_delta = DVec2::new(delta_x, delta_y);
 
                 data.camera_yaw -= (mouse_delta.x / 1000.0) as f32;
                 data.camera_pitch -= (mouse_delta.y / 1000.0) as f32;
+
+                /*
                 if data.camera_yaw < 0.0 {
                     data.camera_yaw += TAU;
                 } else if data.camera_yaw >= TAU {
@@ -589,8 +578,8 @@ impl rend3_framework::App for Rendering {
                     .camera_pitch
                     .max(-std::f32::consts::FRAC_PI_2 + 0.0001)
                     .min(std::f32::consts::FRAC_PI_2 - 0.0001);
+                    */
             }
-            
             rend3_framework::Event::WindowEvent { event, .. } => match event {
                 winit::event::WindowEvent::Resized(size) => {
                     data.egui_routine
