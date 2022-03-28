@@ -1,5 +1,5 @@
 use egui::{FontDefinitions, FontFamily};
-use glam::{DVec2, Mat3A, Mat4, Vec3A};
+use glam::{DVec2, Mat4, Vec3A};
 use instant::Instant;
 use rend3::util::typedefs::FastHashMap;
 use serde::Deserialize;
@@ -459,20 +459,20 @@ impl rend3_framework::App for Rendering {
                     context: data.platform.context(),
                 };
 
-                let quaternion = glam::f32::Quat::from_euler(
+                let quaternion2 = glam::f32::Quat::from_euler(
                     glam::EulerRot::YXZ,
                     data.camera_yaw,
                     data.camera_pitch,
                     data.camera_roll,
                 );
 
-                let view = Mat4::from_quat(quaternion);
+                let view = Mat4::from_quat(quaternion2);
 
                 let view = view * Mat4::from_translation((-data.camera_location).into());
 
                 renderer.set_camera_data(rend3::types::Camera {
                     projection: rend3::types::CameraProjection::Perspective {
-                        vfov: 60.0,
+                        vfov: 90.0,
                         near: 0.1,
                     },
                     view,
