@@ -361,15 +361,17 @@ impl rend3_framework::App for Rendering {
         let now = Instant::now();
         let delta_time = now - data.timestamp_last_frame;
 
-        let z = Mat3A::from_euler(glam::EulerRot::XYZ, 0., 0., data.camera_roll);
-        let side = -z.x_axis;
-        let yz = Mat3A::from_axis_angle(side.into(), data.camera_pitch) * z;
-        let up = yz.y_axis;
-        let rotation = (Mat3A::from_axis_angle(up.into(), data.camera_yaw) * yz).transpose();
+        let quaternion = glam::f32::Quat::from_euler(
+            glam::EulerRot::XYZ,
+            data.camera_yaw,
+            data.camera_pitch,
+            data.camera_roll,
+        );
 
-        let forward = rotation.z_axis;
-        let up = rotation.y_axis;
-        let side = -rotation.x_axis;
+        let side = -glam::f32::Quat::mul_vec3a(quaternion, glam::f32::Vec3A::X);
+        let up = glam::f32::Quat::mul_vec3a(quaternion, glam::f32::Vec3A::Y);
+        let forward = glam::f32::Quat::mul_vec3a(quaternion, glam::f32::Vec3A::Z);
+
         let velocity = if button_pressed(&self.scancode_status, platform::Scancodes::SHIFT) {
             data.run_speed
         } else {
@@ -457,11 +459,15 @@ impl rend3_framework::App for Rendering {
                     context: data.platform.context(),
                 };
 
-                let z = Mat4::from_euler(glam::EulerRot::XYZ, 0., 0., data.camera_roll);
-                let side = z.x_axis;
-                let yz = Mat4::from_axis_angle(side.truncate(), data.camera_pitch) * z;
-                let up = yz.y_axis;
-                let view = Mat4::from_axis_angle(up.truncate(), data.camera_yaw) * yz;
+                let quaternion = glam::f32::Quat::from_euler(
+                    glam::EulerRot::YXZ,
+                    data.camera_yaw,
+                    data.camera_pitch,
+                    data.camera_roll,
+                );
+
+                let view = Mat4::from_quat(quaternion);
+
                 let view = view * Mat4::from_translation((-data.camera_location).into());
 
                 renderer.set_camera_data(rend3::types::Camera {
