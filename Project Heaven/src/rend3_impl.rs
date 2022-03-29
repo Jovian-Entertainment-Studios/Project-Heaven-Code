@@ -46,6 +46,10 @@ struct RenderingData {
 
     rotation: glam::f32::Quat,
 
+    side: Vec3A,
+    up: Vec3A,
+    forward: Vec3A,
+
     camera_location: Vec3A,
     timestamp_last_frame: Instant,
 }
@@ -341,6 +345,10 @@ impl rend3_framework::App for Rendering {
 
             rotation: glam::f32::Quat::IDENTITY,
 
+            side: Vec3A::X,
+            up: Vec3A::Y,
+            forward: Vec3A::Z,
+
             camera_location: glam::Vec3A::new(3.0, 3.0, -5.0),
             timestamp_last_frame: start_time,
         })
@@ -374,11 +382,9 @@ impl rend3_framework::App for Rendering {
 
         data.rotation = glam::f32::Quat::mul_quat(quaternion_new, data.rotation).normalize();
 
-        let rot_mat = glam::f32::Mat3A::from_quat(data.rotation);
-
-        let side = rot_mat.col(0);
-        let up = rot_mat.col(1);
-        let forward = rot_mat.col(2);
+        data.side = glam::f32::Quat::mul_vec3a(quaternion_new, Vec3A::X) * data.side;
+        data.up = glam::f32::Quat::mul_vec3a(quaternion_new, Vec3A::Y) * data.up;
+        data.forward =  glam::f32::Quat::mul_vec3a(quaternion_new, Vec3A::Z) * data.forward;
 
         let velocity = if button_pressed(&self.scancode_status, platform::Scancodes::SHIFT) {
             data.run_speed
@@ -386,22 +392,22 @@ impl rend3_framework::App for Rendering {
             data.walk_speed
         };
         if button_pressed(&self.scancode_status, platform::Scancodes::W) {
-            data.camera_location += forward * velocity * delta_time.as_secs_f32();
+            data.camera_location += data.forward * velocity * delta_time.as_secs_f32();
         }
         if button_pressed(&self.scancode_status, platform::Scancodes::S) {
-            data.camera_location -= forward * velocity * delta_time.as_secs_f32();
+            data.camera_location -= data.forward * velocity * delta_time.as_secs_f32();
         }
         if button_pressed(&self.scancode_status, platform::Scancodes::A) {
-            data.camera_location -= side * velocity * delta_time.as_secs_f32();
+            data.camera_location -= data.side * velocity * delta_time.as_secs_f32();
         }
         if button_pressed(&self.scancode_status, platform::Scancodes::D) {
-            data.camera_location += side * velocity * delta_time.as_secs_f32();
+            data.camera_location += data.side * velocity * delta_time.as_secs_f32();
         }
         if button_pressed(&self.scancode_status, platform::Scancodes::SPACE) {
-            data.camera_location += up * velocity * delta_time.as_secs_f32();
+            data.camera_location += data.up * velocity * delta_time.as_secs_f32();
         }
         if button_pressed(&self.scancode_status, platform::Scancodes::COMMA) {
-            data.camera_location -= up * velocity * delta_time.as_secs_f32();
+            data.camera_location -= data.up * velocity * delta_time.as_secs_f32();
         }
         if button_pressed(&self.scancode_status, platform::Scancodes::Q) {
             data.camera_roll -= 0.0001 * delta_time.as_secs_f32();
