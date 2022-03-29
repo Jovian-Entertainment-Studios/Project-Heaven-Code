@@ -44,6 +44,8 @@ struct RenderingData {
     camera_yaw: f32,
     camera_roll: f32,
 
+    rotation: glam::f32::Quat,
+
     camera_location: Vec3A,
     timestamp_last_frame: Instant,
 }
@@ -337,6 +339,8 @@ impl rend3_framework::App for Rendering {
             camera_yaw: 0.,
             camera_roll: 0.,
 
+            rotation: glam::f32::Quat::IDENTITY,
+
             camera_location: glam::Vec3A::new(3.0, 3.0, -5.0),
             timestamp_last_frame: start_time,
         })
@@ -361,16 +365,20 @@ impl rend3_framework::App for Rendering {
         let now = Instant::now();
         let delta_time = now - data.timestamp_last_frame;
 
-        let quaternion = glam::f32::Quat::from_euler(
-            glam::EulerRot::XYZ,
+        let quaternion_new = glam::f32::Quat::from_euler(
+            glam::EulerRot::YXZ,
             data.camera_yaw,
             data.camera_pitch,
             data.camera_roll,
         );
 
-        let side = -glam::f32::Quat::mul_vec3a(quaternion, glam::f32::Vec3A::X);
-        let up = glam::f32::Quat::mul_vec3a(quaternion, glam::f32::Vec3A::Y);
-        let forward = glam::f32::Quat::mul_vec3a(quaternion, glam::f32::Vec3A::Z);
+        data.rotation = glam::f32::Quat::mul_quat(quaternion_new, data.rotation).normalize();
+
+        let rot_mat = glam::f32::Mat3A::from_quat(data.rotation);
+
+        let side = rot_mat.col(0);
+        let up = rot_mat.col(1);
+        let forward = rot_mat.col(2);
 
         let velocity = if button_pressed(&self.scancode_status, platform::Scancodes::SHIFT) {
             data.run_speed
@@ -384,10 +392,10 @@ impl rend3_framework::App for Rendering {
             data.camera_location -= forward * velocity * delta_time.as_secs_f32();
         }
         if button_pressed(&self.scancode_status, platform::Scancodes::A) {
-            data.camera_location += side * velocity * delta_time.as_secs_f32();
+            data.camera_location -= side * velocity * delta_time.as_secs_f32();
         }
         if button_pressed(&self.scancode_status, platform::Scancodes::D) {
-            data.camera_location -= side * velocity * delta_time.as_secs_f32();
+            data.camera_location += side * velocity * delta_time.as_secs_f32();
         }
         if button_pressed(&self.scancode_status, platform::Scancodes::SPACE) {
             data.camera_location += up * velocity * delta_time.as_secs_f32();
@@ -459,20 +467,13 @@ impl rend3_framework::App for Rendering {
                     context: data.platform.context(),
                 };
 
-                let quaternion2 = glam::f32::Quat::from_euler(
-                    glam::EulerRot::YXZ,
-                    data.camera_yaw,
-                    data.camera_pitch,
-                    data.camera_roll,
-                );
-
-                let view = Mat4::from_quat(quaternion2);
+                let view = Mat4::from_quat(data.rotation);
 
                 let view = view * Mat4::from_translation((-data.camera_location).into());
 
                 renderer.set_camera_data(rend3::types::Camera {
                     projection: rend3::types::CameraProjection::Perspective {
-                        vfov: 90.0,
+                        vfov: 60.0,
                         near: 0.1,
                     },
                     view,
@@ -511,6 +512,10 @@ impl rend3_framework::App for Rendering {
 
                 // Dispatch a render using the built up rendergraph!
                 graph.execute(renderer, frame, cmd_bufs, &ready);
+
+                data.camera_roll = 0.;
+                data.camera_pitch = 0.;
+                data.camera_yaw = 0.;
 
                 window.request_redraw();
                 control_flow(winit::event_loop::ControlFlow::Poll);
