@@ -1,5 +1,5 @@
 use egui::{FontDefinitions, FontFamily};
-use glam::{DVec2, Mat4, Vec3A};
+use glam::{DVec2, Mat4, Vec3A, Quat};
 use instant::Instant;
 use rend3::util::typedefs::FastHashMap;
 use serde::Deserialize;
@@ -373,18 +373,18 @@ impl rend3_framework::App for Rendering {
         let now = Instant::now();
         let delta_time = now - data.timestamp_last_frame;
 
-        let quaternion_new = glam::f32::Quat::from_euler(
+        let quaternion_new = Quat::from_euler(
             glam::EulerRot::YXZ,
             data.camera_yaw,
             data.camera_pitch,
             data.camera_roll,
         );
 
-        data.rotation = glam::f32::Quat::mul_quat(quaternion_new, data.rotation).normalize();
+        data.rotation = Quat::mul_quat(quaternion_new, data.rotation).normalize();
 
-        data.side = glam::f32::Quat::mul_vec3a(quaternion_new, Vec3A::X) * data.side;
-        data.up = glam::f32::Quat::mul_vec3a(quaternion_new, Vec3A::Y) * data.up;
-        data.forward =  glam::f32::Quat::mul_vec3a(quaternion_new, Vec3A::Z) * data.forward;
+        data.side = Quat::mul_vec3a(data.rotation.inverse(), Vec3A::X);
+        data.up = Quat::mul_vec3a(data.rotation.inverse(), Vec3A::Y);
+        data.forward =  Quat::mul_vec3a(data.rotation.inverse(), Vec3A::Z);
 
         let velocity = if button_pressed(&self.scancode_status, platform::Scancodes::SHIFT) {
             data.run_speed
