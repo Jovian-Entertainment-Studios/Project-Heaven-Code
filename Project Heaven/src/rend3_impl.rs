@@ -1,5 +1,5 @@
 use egui::{FontDefinitions, FontFamily};
-use glam::{DVec2, Mat4, Vec3A, Quat};
+use glam::{DVec2, Mat4, Quat, Vec3A};
 use instant::Instant;
 use rend3::util::typedefs::FastHashMap;
 use serde::Deserialize;
@@ -109,12 +109,7 @@ impl rend3_framework::App for Rendering {
         );
 
         let mut star_data: std::vec::Vec<StarData> = vec![];
-        match spv_rs::input_data::parse_csv(
-            "src/data/stars/edr3_10plx_gmag.csv",
-            false,
-            b',',
-            b'\n',
-        ) {
+        match spv_rs::input_data::parse_csv("src/data/stars/edr3_10gmag.csv", true, b',', b'\n') {
             Ok(vec) => star_data = vec,
             Err(ex) => {
                 println!("ERROR -> {}", ex);
@@ -123,7 +118,7 @@ impl rend3_framework::App for Rendering {
 
         // Add PBR material with all defaults except a single color.
         let player_material = rend3_routine::pbr::PbrMaterial {
-            albedo: rend3_routine::pbr::AlbedoComponent::Value(glam::Vec4::new(0.0, 0.0, 0.0, 0.0)),
+            albedo: rend3_routine::pbr::AlbedoComponent::Value(glam::Vec4::new(1., 1., 1., 1.)),
             transparency: rend3_routine::pbr::Transparency::Blend,
             ..rend3_routine::pbr::PbrMaterial::default()
         };
@@ -136,7 +131,7 @@ impl rend3_framework::App for Rendering {
             mesh_kind: rend3::types::ObjectMeshKind::Static(player_mesh),
             material: player_material_handle.clone(),
             transform: glam::Mat4::from_scale_rotation_translation(
-                glam::Vec3::new(0.01, 0.01, -0.01),
+                glam::Vec3::new(1., 1., -1.),
                 rend3::types::glam::Quat::IDENTITY,
                 glam::Vec3::new(0.0, 0.0, 0.0),
             ),
@@ -146,7 +141,7 @@ impl rend3_framework::App for Rendering {
         object_vec.push(renderer.add_object(player));
 
         for i in star_data {
-            if i.gmag < 7. {
+            if i.gmag < 5. {
                 let star_material = rend3_routine::pbr::PbrMaterial {
                     albedo: rend3_routine::pbr::AlbedoComponent::Value(glam::Vec4::new(
                         1.0, 1.0, 1.0, 1.0,
@@ -336,8 +331,8 @@ impl rend3_framework::App for Rendering {
             start_time,
             color,
 
-            walk_speed: 5000000000000.,
-            run_speed: 10000000000000.,
+            walk_speed: 0.1,/*000000000000*/
+            run_speed: 0.2,/*000000000000*/
 
             camera_pitch: 0.,
             camera_yaw: 0.,
@@ -380,11 +375,15 @@ impl rend3_framework::App for Rendering {
             data.camera_roll,
         );
 
+        data.camera_roll = 0.;
+        data.camera_pitch = 0.;
+        data.camera_yaw = 0.;
+
         data.rotation = Quat::mul_quat(quaternion_new, data.rotation).normalize();
 
         data.side = Quat::mul_vec3a(data.rotation.inverse(), Vec3A::X);
         data.up = Quat::mul_vec3a(data.rotation.inverse(), Vec3A::Y);
-        data.forward =  Quat::mul_vec3a(data.rotation.inverse(), Vec3A::Z);
+        data.forward = Quat::mul_vec3a(data.rotation.inverse(), Vec3A::Z);
 
         let velocity = if button_pressed(&self.scancode_status, platform::Scancodes::SHIFT) {
             data.run_speed
@@ -519,10 +518,6 @@ impl rend3_framework::App for Rendering {
                 // Dispatch a render using the built up rendergraph!
                 graph.execute(renderer, frame, cmd_bufs, &ready);
 
-                data.camera_roll = 0.;
-                data.camera_pitch = 0.;
-                data.camera_yaw = 0.;
-
                 window.request_redraw();
                 control_flow(winit::event_loop::ControlFlow::Poll);
             }
@@ -582,8 +577,8 @@ impl rend3_framework::App for Rendering {
 
                 let mouse_delta = DVec2::new(delta_x, delta_y);
 
-                data.camera_yaw -= (mouse_delta.x / 1000.0) as f32;
-                data.camera_pitch -= (mouse_delta.y / 1000.0) as f32;
+                data.camera_yaw -= (mouse_delta.x / 2000.0) as f32;
+                data.camera_pitch -= (mouse_delta.y / 2000.0) as f32;
 
                 /*
                 if data.camera_yaw < 0.0 {
