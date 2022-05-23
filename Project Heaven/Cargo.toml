@@ -35,3 +35,4 @@ ndarray = { version = "0.15", features = ["blas"]}
 ndarray-glm = { version = "0.0.10", features = ["openblas-system"] }
 input-actions = "0.1.0"
 cfg-if = "1"
+histogram = "0.6.9"

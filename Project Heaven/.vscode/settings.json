@@ -1,6 +1,0 @@
-{
-    "git.ignoreLimitWarning": true,
-    "files.autoSave": "afterDelay",
-    "editor.formatOnSave": true,
-    "editor.defaultFormatter": "rust-lang.rust"
-}

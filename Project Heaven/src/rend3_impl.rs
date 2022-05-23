@@ -1,5 +1,6 @@
 use egui::{FontDefinitions, FontFamily};
 use glam::{DVec2, Mat4, Quat, Vec3A};
+use histogram::Histogram;
 use instant::Instant;
 use rend3::util::typedefs::FastHashMap;
 use serde::Deserialize;
@@ -52,6 +53,8 @@ struct RenderingData {
 
     camera_location: Vec3A,
     timestamp_last_frame: Instant,
+    timestamp_last_second: Instant,
+    frame_times: Histogram,
 }
 
 const SAMPLE_COUNT: rend3::types::SampleCount = rend3::types::SampleCount::One;
@@ -295,7 +298,7 @@ impl rend3_framework::App for Rendering {
                 physical_height: window_size.height as u32,
                 scale_factor: window.scale_factor(),
                 font_definitions: font,
-                style: style,
+                style,
             });
 
         //Images
@@ -331,8 +334,8 @@ impl rend3_framework::App for Rendering {
             start_time,
             color,
 
-            walk_speed: 0.1,/*000000000000*/
-            run_speed: 0.2,/*000000000000*/
+            walk_speed: 10., /*000000000000*/
+            run_speed: 20.,  /*000000000000*/
 
             camera_pitch: 0.,
             camera_yaw: 0.,
@@ -345,7 +348,9 @@ impl rend3_framework::App for Rendering {
             forward: Vec3A::Z,
 
             camera_location: glam::Vec3A::new(3.0, 3.0, -5.0),
-            timestamp_last_frame: start_time,
+            timestamp_last_frame: Instant::now(),
+            timestamp_last_second: Instant::now(),
+            frame_times: Histogram::new(),
         })
     }
 
@@ -367,6 +372,35 @@ impl rend3_framework::App for Rendering {
 
         let now = Instant::now();
         let delta_time = now - data.timestamp_last_frame;
+        data.frame_times
+            .increment(delta_time.as_micros() as u64)
+            .unwrap();
+
+        let elapsed_since_second = now - data.timestamp_last_second;
+        if elapsed_since_second > std::time::Duration::from_secs(1) {
+            let count = data.frame_times.entries();
+            println!(
+                "{:0>5} frames over {:0>5.2}s. \
+                        Min: {:0>5.2}ms; \
+                        Average: {:0>5.2}ms; \
+                        95%: {:0>5.2}ms; \
+                        99%: {:0>5.2}ms; \
+                        Max: {:0>5.2}ms; \
+                        StdDev: {:0>5.2}ms",
+                count,
+                elapsed_since_second.as_secs_f32(),
+                data.frame_times.minimum().unwrap() as f32 / 1_000.0,
+                data.frame_times.mean().unwrap() as f32 / 1_000.0,
+                data.frame_times.percentile(95.0).unwrap() as f32 / 1_000.0,
+                data.frame_times.percentile(99.0).unwrap() as f32 / 1_000.0,
+                data.frame_times.maximum().unwrap() as f32 / 1_000.0,
+                data.frame_times.stddev().unwrap() as f32 / 1_000.0,
+            );
+            data.timestamp_last_second = now;
+            data.frame_times.clear();
+        }
+
+        data.timestamp_last_frame = now;
 
         let quaternion_new = Quat::from_euler(
             glam::EulerRot::YXZ,
@@ -409,10 +443,10 @@ impl rend3_framework::App for Rendering {
             data.camera_location -= data.up * velocity * delta_time.as_secs_f32();
         }
         if button_pressed(&self.scancode_status, platform::Scancodes::Q) {
-            data.camera_roll -= 0.0001 * delta_time.as_secs_f32();
+            data.camera_roll -= 1. * delta_time.as_secs_f32();
         }
         if button_pressed(&self.scancode_status, platform::Scancodes::E) {
-            data.camera_roll += 0.0001 * delta_time.as_secs_f32();
+            data.camera_roll += 1. * delta_time.as_secs_f32();
         }
 
         if button_pressed(&self.scancode_status, platform::Scancodes::ESCAPE) {
