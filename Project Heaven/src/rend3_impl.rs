@@ -1,5 +1,5 @@
 use egui::{FontDefinitions, FontFamily};
-use glam::{DVec2, Mat4, Quat, Vec3A};
+use glam::{DVec2, Mat4, Vec3A};
 use histogram::Histogram;
 use instant::Instant;
 use rend3::util::typedefs::FastHashMap;
@@ -9,6 +9,10 @@ use std::{collections::HashMap, hash::BuildHasher, sync::Arc};
 use winit::event::{ElementState, KeyboardInput, MouseButton};
 
 mod physics;
+
+mod controls;
+use controls::space_cam;
+use controls::SpaceCam;
 
 mod platform;
 
@@ -402,53 +406,31 @@ impl rend3_framework::App for Rendering {
 
         data.timestamp_last_frame = now;
 
-        let quaternion_new = Quat::from_euler(
-            glam::EulerRot::YXZ,
-            data.camera_yaw,
-            data.camera_pitch,
-            data.camera_roll,
+        let cam_data = space_cam(
+            SpaceCam {
+                camera_yaw: data.camera_yaw,
+                camera_pitch: data.camera_pitch,
+                camera_roll: data.camera_roll,
+                rotation: data.rotation,
+                side: data.side,
+                up: data.up,
+                forward: data.forward,
+                run_speed: data.run_speed,
+                walk_speed: data.walk_speed,
+                delta_time,
+                camera_location: data.camera_location,
+            },
+            &self.scancode_status,
         );
 
-        data.camera_roll = 0.;
+        data.rotation = cam_data.0;
+        data.camera_location = cam_data.1;
+        data.camera_roll = cam_data.2;
+
         data.camera_pitch = 0.;
         data.camera_yaw = 0.;
 
-        data.rotation = Quat::mul_quat(quaternion_new, data.rotation).normalize();
-
-        data.side = Quat::mul_vec3a(data.rotation.inverse(), Vec3A::X);
-        data.up = Quat::mul_vec3a(data.rotation.inverse(), Vec3A::Y);
-        data.forward = Quat::mul_vec3a(data.rotation.inverse(), Vec3A::Z);
-
-        let velocity = if button_pressed(&self.scancode_status, platform::Scancodes::SHIFT) {
-            data.run_speed
-        } else {
-            data.walk_speed
-        };
-        if button_pressed(&self.scancode_status, platform::Scancodes::W) {
-            data.camera_location += data.forward * velocity * delta_time.as_secs_f32();
-        }
-        if button_pressed(&self.scancode_status, platform::Scancodes::S) {
-            data.camera_location -= data.forward * velocity * delta_time.as_secs_f32();
-        }
-        if button_pressed(&self.scancode_status, platform::Scancodes::A) {
-            data.camera_location -= data.side * velocity * delta_time.as_secs_f32();
-        }
-        if button_pressed(&self.scancode_status, platform::Scancodes::D) {
-            data.camera_location += data.side * velocity * delta_time.as_secs_f32();
-        }
-        if button_pressed(&self.scancode_status, platform::Scancodes::SPACE) {
-            data.camera_location += data.up * velocity * delta_time.as_secs_f32();
-        }
-        if button_pressed(&self.scancode_status, platform::Scancodes::COMMA) {
-            data.camera_location -= data.up * velocity * delta_time.as_secs_f32();
-        }
-        if button_pressed(&self.scancode_status, platform::Scancodes::Q) {
-            data.camera_roll -= 1. * delta_time.as_secs_f32();
-        }
-        if button_pressed(&self.scancode_status, platform::Scancodes::E) {
-            data.camera_roll += 1. * delta_time.as_secs_f32();
-        }
-
+        
         if button_pressed(&self.scancode_status, platform::Scancodes::ESCAPE) {
             self.grabber.as_mut().unwrap().request_ungrab(window);
         }
