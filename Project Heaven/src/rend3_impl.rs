@@ -1,5 +1,5 @@
 use egui::{FontDefinitions, FontFamily};
-use glam::{DVec2, Mat4, Vec3A};
+use glam::{DVec2, Mat4, Quat, Vec3A};
 use histogram::Histogram;
 use instant::Instant;
 use rend3::util::typedefs::FastHashMap;
@@ -11,7 +11,9 @@ use winit::event::{ElementState, KeyboardInput, MouseButton};
 mod physics;
 
 mod controls;
+use controls::ship_cam;
 use controls::space_cam;
+use controls::ShipCam;
 use controls::SpaceCam;
 
 mod platform;
@@ -49,16 +51,35 @@ struct RenderingData {
     camera_yaw: f32,
     camera_roll: f32,
 
-    rotation: glam::f32::Quat,
+    ship_yaw: f32,
+    ship_pitch: f32,
+    ship_roll: f32,
+
+    rotation: Quat,
+
+    camera_relative_rotation: Quat,
+
+    ship_location: Vec3A,
+    ship_rotation: Quat,
 
     side: Vec3A,
     up: Vec3A,
     forward: Vec3A,
 
+    ship_side: Vec3A,
+    ship_up: Vec3A,
+    ship_forward: Vec3A,
+
+    acceleration_max: f32,
+    acceleration: f32,
+    velocity: f32,
+
     camera_location: Vec3A,
     timestamp_last_frame: Instant,
     timestamp_last_second: Instant,
     frame_times: Histogram,
+
+    camtype: bool,
 }
 
 const SAMPLE_COUNT: rend3::types::SampleCount = rend3::types::SampleCount::One;
@@ -345,16 +366,35 @@ impl rend3_framework::App for Rendering {
             camera_yaw: 0.,
             camera_roll: 0.,
 
-            rotation: glam::f32::Quat::IDENTITY,
+            ship_yaw: 0.,
+            ship_pitch: 0.,
+            ship_roll: 0.,
+
+            rotation: Quat::IDENTITY,
+
+            camera_relative_rotation: Quat::IDENTITY,
+
+            ship_location: Vec3A::ZERO,
+            ship_rotation: Quat::IDENTITY,
 
             side: Vec3A::X,
             up: Vec3A::Y,
             forward: Vec3A::Z,
 
-            camera_location: glam::Vec3A::new(3.0, 3.0, -5.0),
+            ship_side: Vec3A::X,
+            ship_up: Vec3A::Y,
+            ship_forward: Vec3A::Z,
+
+            acceleration_max: 2.,
+            acceleration: 0.,
+            velocity: 0.,
+
+            camera_location: Vec3A::ZERO,
             timestamp_last_frame: Instant::now(),
             timestamp_last_second: Instant::now(),
             frame_times: Histogram::new(),
+
+            camtype: false,
         })
     }
 
@@ -406,31 +446,81 @@ impl rend3_framework::App for Rendering {
 
         data.timestamp_last_frame = now;
 
-        let cam_data = space_cam(
-            SpaceCam {
-                camera_yaw: data.camera_yaw,
-                camera_pitch: data.camera_pitch,
-                camera_roll: data.camera_roll,
-                rotation: data.rotation,
-                side: data.side,
-                up: data.up,
-                forward: data.forward,
-                run_speed: data.run_speed,
-                walk_speed: data.walk_speed,
-                delta_time,
-                camera_location: data.camera_location,
-            },
-            &self.scancode_status,
-        );
+        if button_pressed(&self.scancode_status, platform::Scancodes::PERIOD) {
+            data.camtype = !data.camtype;
+        }
 
-        data.rotation = cam_data.0;
-        data.camera_location = cam_data.1;
-        data.camera_roll = cam_data.2;
+        if data.camtype == true {
+            let cam_data = space_cam(
+                SpaceCam {
+                    camera_yaw: data.camera_yaw,
+                    camera_pitch: data.camera_pitch,
+                    camera_roll: data.camera_roll,
+                    rotation: data.rotation,
+                    side: data.side,
+                    up: data.up,
+                    forward: data.forward,
+                    run_speed: data.run_speed,
+                    walk_speed: data.walk_speed,
+                    delta_time,
+                    camera_location: data.camera_location,
+                },
+                &self.scancode_status,
+            );
 
-        data.camera_pitch = 0.;
-        data.camera_yaw = 0.;
+            data.rotation = cam_data.0;
+            data.camera_location = cam_data.1;
+            data.camera_roll = cam_data.2;
 
-        
+            data.camera_pitch = 0.;
+            data.camera_yaw = 0.;
+        } else {
+            let cam_data = ship_cam(
+                ShipCam {
+                    camera_yaw: data.camera_yaw,
+                    camera_pitch: data.camera_pitch,
+
+                    ship_yaw: data.ship_yaw,
+                    ship_pitch: data.ship_pitch,
+                    ship_roll: data.ship_roll,
+
+                    camera_side: data.side,
+                    camera_up: data.up,
+                    camera_forward: data.forward,
+
+                    ship_side: data.ship_side,
+                    ship_up: data.ship_up,
+                    ship_forward: data.ship_forward,
+
+                    acceleration_max: data.acceleration_max,
+                    acceleration: data.acceleration,
+                    velocity: data.velocity,
+
+                    delta_time,
+
+                    camera_location: data.camera_location,
+                    camera_relative_rotation: data.camera_relative_rotation,
+                    camera_rotation: data.rotation,
+
+                    ship_location: data.ship_location,
+                    ship_rotation: data.ship_rotation,
+                },
+                &self.scancode_status,
+            );
+
+            data.acceleration = cam_data.0;
+            data.ship_yaw = cam_data.1;
+            data.ship_pitch = cam_data.2;
+            data.ship_roll = cam_data.3;
+            data.ship_rotation = cam_data.4;
+            data.ship_location = cam_data.5;
+
+            data.camera_location = data.ship_location + Vec3A::new(100., 0., -20.);
+
+            data.camera_pitch = 0.;
+            data.camera_yaw = 0.;
+        }
+
         if button_pressed(&self.scancode_status, platform::Scancodes::ESCAPE) {
             self.grabber.as_mut().unwrap().request_ungrab(window);
         }

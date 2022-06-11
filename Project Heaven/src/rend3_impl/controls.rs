@@ -110,7 +110,10 @@ pub struct ShipCam {
     pub ship_rotation: Quat,
 }
 
-pub fn ship_cam(mut data: ShipCam, scancode_status: &FastHashMap<u32, bool>) -> (Quat, Vec3A, f32) {
+pub fn ship_cam(
+    mut data: ShipCam,
+    scancode_status: &FastHashMap<u32, bool>,
+) -> (f32, f32, f32, f32, Quat, Vec3A) {
     let ship_new_rotation_quaternion = Quat::from_euler(
         glam::EulerRot::YXZ,
         data.ship_yaw,
@@ -195,5 +198,12 @@ pub fn ship_cam(mut data: ShipCam, scancode_status: &FastHashMap<u32, bool>) -> 
     }
     data.camera_location = data.ship_location + Vec3A::new(100., 0., -20.);
 
-    (data.rotation, camera_location, data.camera_roll)
+    (
+        data.acceleration,
+        data.ship_yaw,
+        data.ship_pitch,
+        data.ship_roll,
+        data.ship_rotation,
+        data.ship_location,
+    )
 }
