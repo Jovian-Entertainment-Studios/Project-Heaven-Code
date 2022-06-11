@@ -12,16 +12,24 @@ pub struct SpaceCam {
     pub camera_yaw: f32,
     pub camera_pitch: f32,
     pub camera_roll: f32,
+
     pub rotation: Quat,
+
     pub side: Vec3A,
     pub up: Vec3A,
     pub forward: Vec3A,
+
     pub run_speed: f32,
     pub walk_speed: f32,
+
     pub delta_time: std::time::Duration,
+
     pub camera_location: Vec3A,
 }
-pub fn space_cam(mut data: SpaceCam, scancode_status: &FastHashMap<u32, bool>) -> (Quat, Vec3A, f32) {
+pub fn space_cam(
+    mut data: SpaceCam,
+    scancode_status: &FastHashMap<u32, bool>,
+) -> (Quat, Vec3A, f32) {
     let quaternion_new = Quat::from_euler(
         glam::EulerRot::YXZ,
         data.camera_yaw,
@@ -70,4 +78,122 @@ pub fn space_cam(mut data: SpaceCam, scancode_status: &FastHashMap<u32, bool>) -
     }
 
     (data.rotation, data.camera_location, data.camera_roll)
+}
+
+pub struct ShipCam {
+    pub camera_yaw: f32,
+    pub camera_pitch: f32,
+
+    pub ship_yaw: f32,
+    pub ship_pitch: f32,
+    pub ship_roll: f32,
+
+    pub camera_side: Vec3A,
+    pub camera_up: Vec3A,
+    pub camera_forward: Vec3A,
+
+    pub ship_side: Vec3A,
+    pub ship_up: Vec3A,
+    pub ship_forward: Vec3A,
+
+    pub acceleration_max: f32,
+    pub acceleration: f32,
+    pub velocity: f32,
+
+    pub delta_time: std::time::Duration,
+
+    pub camera_location: Vec3A,
+    pub camera_relative_rotation: Quat,
+    pub camera_rotation: Quat,
+
+    pub ship_location: Vec3A,
+    pub ship_rotation: Quat,
+}
+
+pub fn ship_cam(mut data: ShipCam, scancode_status: &FastHashMap<u32, bool>) -> (Quat, Vec3A, f32) {
+    let ship_new_rotation_quaternion = Quat::from_euler(
+        glam::EulerRot::YXZ,
+        data.ship_yaw,
+        data.ship_pitch,
+        data.ship_roll,
+    );
+
+    data.ship_roll = 0.;
+    data.ship_pitch = 0.;
+    data.ship_yaw = 0.;
+
+    let camera_new_rotation_quaternion =
+        Quat::from_euler(glam::EulerRot::YXZ, data.camera_yaw, data.camera_pitch, 0.);
+
+    data.camera_pitch = 0.;
+    data.camera_yaw = 0.;
+
+    data.ship_rotation =
+        Quat::mul_quat(ship_new_rotation_quaternion, data.ship_rotation).normalize();
+
+    data.camera_relative_rotation = Quat::mul_quat(
+        camera_new_rotation_quaternion,
+        data.camera_relative_rotation,
+    )
+    .normalize();
+
+    data.camera_rotation =
+        Quat::mul_quat(data.camera_relative_rotation, data.ship_rotation.clone()).normalize();
+
+    data.ship_side = Quat::mul_vec3a(data.ship_rotation.inverse(), Vec3A::X);
+    data.ship_up = Quat::mul_vec3a(data.ship_rotation.inverse(), Vec3A::Y);
+    data.ship_forward = Quat::mul_vec3a(data.ship_rotation.inverse(), Vec3A::Z);
+
+    if button_pressed(scancode_status, platform::Scancodes::PLUS_NUM) {
+        data.acceleration = data.acceleration + (1. * data.delta_time.as_secs_f32());
+    }
+    if button_pressed(scancode_status, platform::Scancodes::MINUS_NUM) {
+        data.acceleration = data.acceleration - (1. * data.delta_time.as_secs_f32());
+    }
+
+    data.velocity = data.velocity + (data.delta_time.as_secs_f32() * data.acceleration);
+
+    data.ship_location += data.ship_forward * data.velocity * data.delta_time.as_secs_f32();
+
+    let velocity = 10.;
+
+    if button_pressed(scancode_status, platform::Scancodes::W) {
+        data.ship_location += data.ship_forward * velocity * data.delta_time.as_secs_f32();
+    }
+    if button_pressed(scancode_status, platform::Scancodes::S) {
+        data.ship_location -= data.ship_forward * velocity * data.delta_time.as_secs_f32();
+    }
+    if button_pressed(scancode_status, platform::Scancodes::A) {
+        data.ship_location -= data.ship_side * velocity * data.delta_time.as_secs_f32();
+    }
+    if button_pressed(scancode_status, platform::Scancodes::D) {
+        data.ship_location += data.ship_side * velocity * data.delta_time.as_secs_f32();
+    }
+    if button_pressed(scancode_status, platform::Scancodes::SPACE) {
+        data.ship_location += data.ship_up * velocity * data.delta_time.as_secs_f32();
+    }
+    if button_pressed(scancode_status, platform::Scancodes::COMMA) {
+        data.ship_location -= data.ship_up * velocity * data.delta_time.as_secs_f32();
+    }
+    if button_pressed(scancode_status, platform::Scancodes::Q) {
+        data.ship_roll -= 1. * data.delta_time.as_secs_f32();
+    }
+    if button_pressed(scancode_status, platform::Scancodes::E) {
+        data.ship_roll += 1. * data.delta_time.as_secs_f32();
+    }
+    if button_pressed(scancode_status, platform::Scancodes::UP) {
+        data.ship_pitch -= 1. * data.delta_time.as_secs_f32();
+    }
+    if button_pressed(scancode_status, platform::Scancodes::DOWN) {
+        data.ship_pitch += 1. * data.delta_time.as_secs_f32();
+    }
+    if button_pressed(scancode_status, platform::Scancodes::LEFT) {
+        data.ship_yaw -= 1. * data.delta_time.as_secs_f32();
+    }
+    if button_pressed(scancode_status, platform::Scancodes::RIGHT) {
+        data.ship_yaw += 1. * data.delta_time.as_secs_f32();
+    }
+    data.camera_location = data.ship_location + Vec3A::new(100., 0., -20.);
+
+    (data.rotation, camera_location, data.camera_roll)
 }
