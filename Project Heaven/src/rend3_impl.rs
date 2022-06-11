@@ -1,5 +1,5 @@
 use egui::{FontDefinitions, FontFamily};
-use glam::{DVec2, Mat4, Quat, Vec3A};
+use glam::{DVec2, Mat4, Quat, Vec3, Vec3A};
 use histogram::Histogram;
 use instant::Instant;
 use rend3::util::typedefs::FastHashMap;
@@ -35,6 +35,7 @@ struct StarData {
 
 struct RenderingData {
     _object_handle: std::vec::Vec<rend3::types::ObjectHandle>,
+    _player_handle: rend3::types::ObjectHandle,
     _material_handle: std::vec::Vec<rend3::types::MaterialHandle>,
     player_material_handle: rend3::types::MaterialHandle,
     _directional_handle: rend3::types::DirectionalLightHandle,
@@ -166,10 +167,10 @@ impl rend3_framework::App for Rendering {
         };
 
         let mut object_vec = Vec::new();
-        object_vec.push(renderer.add_object(player));
+        let _player_handle = renderer.add_object(player);
 
         for i in star_data {
-            if i.gmag < 5. {
+            if i.gmag < 7. {
                 let star_material = rend3_routine::pbr::PbrMaterial {
                     albedo: rend3_routine::pbr::AlbedoComponent::Value(glam::Vec4::new(
                         1.0, 1.0, 1.0, 1.0,
@@ -350,6 +351,7 @@ impl rend3_framework::App for Rendering {
 
         self.data = Some(RenderingData {
             _object_handle: object_vec,
+            _player_handle,
             _material_handle: material_vec,
             player_material_handle,
             _directional_handle,
@@ -516,6 +518,16 @@ impl rend3_framework::App for Rendering {
             data.ship_location = cam_data.5;
 
             data.camera_location = data.ship_location + Vec3A::new(100., 0., -20.);
+
+            rend3::Renderer::set_object_transform(
+                renderer,
+                &data._player_handle,
+                glam::Mat4::from_scale_rotation_translation(
+                    glam::Vec3::new(1., 1., -1.),
+                    data.ship_rotation,
+                    Vec3::from(data.ship_location),
+                ),
+            );
 
             data.camera_pitch = 0.;
             data.camera_yaw = 0.;
