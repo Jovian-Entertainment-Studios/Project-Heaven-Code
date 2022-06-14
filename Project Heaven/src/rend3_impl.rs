@@ -58,6 +58,8 @@ struct RenderingData {
 
     rotation: Quat,
 
+    camera_rotation: Quat,
+
     camera_relative_rotation: Quat,
 
     ship_location: Vec3A,
@@ -83,7 +85,7 @@ struct RenderingData {
     camtype: bool,
 }
 
-const SAMPLE_COUNT: rend3::types::SampleCount = rend3::types::SampleCount::One;
+const SAMPLE_COUNT: rend3::types::SampleCount = rend3::types::SampleCount::Four;
 
 #[derive(Default)]
 pub struct Rendering {
@@ -134,7 +136,7 @@ impl rend3_framework::App for Rendering {
 
         let (player_mesh, _material) = load_gltf(
             renderer,
-            concat!(env!("CARGO_MANIFEST_DIR"), "/src/data/3d/Heaven1.glb"),
+            concat!(env!("CARGO_MANIFEST_DIR"), "/src/data/3d/Heaven1_2.glb"),
         );
 
         let mut star_data: std::vec::Vec<StarData> = vec![];
@@ -147,7 +149,7 @@ impl rend3_framework::App for Rendering {
 
         // Add PBR material with all defaults except a single color.
         let player_material = rend3_routine::pbr::PbrMaterial {
-            albedo: rend3_routine::pbr::AlbedoComponent::Value(glam::Vec4::new(1., 1., 1., 1.)),
+            albedo: rend3_routine::pbr::AlbedoComponent::Value(glam::Vec4::new(1., 1., 1., 0.2)),
             transparency: rend3_routine::pbr::Transparency::Blend,
             ..rend3_routine::pbr::PbrMaterial::default()
         };
@@ -170,7 +172,7 @@ impl rend3_framework::App for Rendering {
         let _player_handle = renderer.add_object(player);
 
         for i in star_data {
-            if i.gmag < 7. {
+            if i.gmag < 5. {
                 let star_material = rend3_routine::pbr::PbrMaterial {
                     albedo: rend3_routine::pbr::AlbedoComponent::Value(glam::Vec4::new(
                         1.0, 1.0, 1.0, 1.0,
@@ -374,6 +376,8 @@ impl rend3_framework::App for Rendering {
 
             rotation: Quat::IDENTITY,
 
+            camera_rotation: Quat::IDENTITY,
+
             camera_relative_rotation: Quat::IDENTITY,
 
             ship_location: Vec3A::ZERO,
@@ -458,7 +462,7 @@ impl rend3_framework::App for Rendering {
                     camera_yaw: data.camera_yaw,
                     camera_pitch: data.camera_pitch,
                     camera_roll: data.camera_roll,
-                    rotation: data.rotation,
+                    rotation: data.camera_rotation,
                     side: data.side,
                     up: data.up,
                     forward: data.forward,
@@ -511,13 +515,25 @@ impl rend3_framework::App for Rendering {
             );
 
             data.acceleration = cam_data.0;
+
             data.ship_yaw = cam_data.1;
             data.ship_pitch = cam_data.2;
             data.ship_roll = cam_data.3;
+
             data.ship_rotation = cam_data.4;
             data.ship_location = cam_data.5;
 
-            data.camera_location = data.ship_location + Vec3A::new(100., 0., -20.);
+            data.rotation = cam_data.6;
+
+            data.camera_rotation = Quat::mul_quat(
+                Quat::from_euler(glam::EulerRot::YXZ, -std::f32::consts::PI / 2., 0., 0.),
+                data.rotation,
+            );
+
+            data.camera_location =
+                data.ship_location + Quat::mul_vec3a(data.rotation, Vec3A::new(90., -15.5, 0.));
+
+            data.camera_location = data.ship_location;
 
             rend3::Renderer::set_object_transform(
                 renderer,
@@ -590,7 +606,7 @@ impl rend3_framework::App for Rendering {
                     context: data.platform.context(),
                 };
 
-                let view = Mat4::from_quat(data.rotation);
+                let view = Mat4::from_quat(data.camera_rotation);
 
                 let view = view * Mat4::from_translation((-data.camera_location).into());
 
