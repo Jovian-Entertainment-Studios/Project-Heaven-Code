@@ -149,8 +149,8 @@ impl rend3_framework::App for Rendering {
 
         // Add PBR material with all defaults except a single color.
         let player_material = rend3_routine::pbr::PbrMaterial {
-            albedo: rend3_routine::pbr::AlbedoComponent::Value(glam::Vec4::new(1., 1., 1., 0.2)),
-            transparency: rend3_routine::pbr::Transparency::Blend,
+            albedo: rend3_routine::pbr::AlbedoComponent::Value(glam::Vec4::new(1., 1., 1., 1.)),
+            transparency: rend3_routine::pbr::Transparency::Opaque,
             ..rend3_routine::pbr::PbrMaterial::default()
         };
 
@@ -207,7 +207,7 @@ impl rend3_framework::App for Rendering {
         // We need to keep the directional light handle alive.
         let _directional_handle = renderer.add_directional_light(rend3::types::DirectionalLight {
             color: glam::Vec3::ONE,
-            intensity: 1.0,
+            intensity: 0.5,
             // Direction will be normalized
             direction: glam::Vec3::new(-1.0, -4.0, 2.0),
             distance: 400.0,
@@ -474,7 +474,7 @@ impl rend3_framework::App for Rendering {
                 &self.scancode_status,
             );
 
-            data.rotation = cam_data.0;
+            data.camera_rotation = cam_data.0;
             data.camera_location = cam_data.1;
             data.camera_roll = cam_data.2;
 
@@ -515,6 +515,9 @@ impl rend3_framework::App for Rendering {
             );
 
             data.acceleration = cam_data.0;
+            data.velocity = cam_data.7;
+
+            //println!("{}        {}", data.acceleration, data.velocity);
 
             data.ship_yaw = cam_data.1;
             data.ship_pitch = cam_data.2;
@@ -525,15 +528,19 @@ impl rend3_framework::App for Rendering {
 
             data.rotation = cam_data.6;
 
+            /*
             data.camera_rotation = Quat::mul_quat(
                 Quat::from_euler(glam::EulerRot::YXZ, -std::f32::consts::PI / 2., 0., 0.),
                 data.rotation,
             );
+            */
 
-            data.camera_location =
-                data.ship_location + Quat::mul_vec3a(data.rotation, Vec3A::new(90., -15.5, 0.));
+            data.camera_rotation = data.rotation;
 
-            data.camera_location = data.ship_location;
+            data.camera_location = data.ship_location
+                + Quat::mul_vec3a(data.ship_rotation, Vec3A::new(0., -16.5512, 90.));
+
+            //data.camera_location = data.ship_location;
 
             rend3::Renderer::set_object_transform(
                 renderer,
@@ -642,7 +649,7 @@ impl rend3_framework::App for Rendering {
                     &tonemapping_routine,
                     resolution,
                     SAMPLE_COUNT,
-                    glam::Vec4::splat(0.1),
+                    glam::Vec4::splat(0.),
                 );
 
                 // Add egui on top of all the other passes
