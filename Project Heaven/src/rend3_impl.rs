@@ -75,7 +75,8 @@ struct RenderingData {
 
     acceleration_max: f32,
     acceleration: f32,
-    velocity: f32,
+    velocity_vec: Vec3A,
+    acceleration_vec: Vec3A,
 
     camera_location: Vec3A,
     timestamp_last_frame: Instant,
@@ -393,7 +394,8 @@ impl rend3_framework::App for Rendering {
 
             acceleration_max: 2.,
             acceleration: 0.,
-            velocity: 0.,
+            velocity_vec: Vec3A::ZERO,
+            acceleration_vec: Vec3A::ZERO,
 
             camera_location: Vec3A::ZERO,
             timestamp_last_frame: Instant::now(),
@@ -500,7 +502,8 @@ impl rend3_framework::App for Rendering {
 
                     acceleration_max: data.acceleration_max,
                     acceleration: data.acceleration,
-                    velocity: data.velocity,
+                    velocity_vec: data.velocity_vec,
+                    acceleration_vec: data.acceleration_vec,
 
                     delta_time,
 
@@ -515,9 +518,8 @@ impl rend3_framework::App for Rendering {
             );
 
             data.acceleration = cam_data.0;
-            data.velocity = cam_data.7;
-
-            //println!("{}        {}", data.acceleration, data.velocity);
+            data.velocity_vec = cam_data.7;
+            data.acceleration_vec = cam_data.8;
 
             data.ship_yaw = cam_data.1;
             data.ship_pitch = cam_data.2;
@@ -528,19 +530,15 @@ impl rend3_framework::App for Rendering {
 
             data.rotation = cam_data.6;
 
-            /*
-            data.camera_rotation = Quat::mul_quat(
-                Quat::from_euler(glam::EulerRot::YXZ, -std::f32::consts::PI / 2., 0., 0.),
-                data.rotation,
+            println!(
+                "{:?}        {:?}          {:?}",
+                data.acceleration_vec, data.velocity_vec, data.ship_location
             );
-            */
 
             data.camera_rotation = data.rotation;
 
             data.camera_location = data.ship_location
                 + Quat::mul_vec3a(data.ship_rotation, Vec3A::new(0., -16.5512, 90.));
-
-            //data.camera_location = data.ship_location;
 
             rend3::Renderer::set_object_transform(
                 renderer,
@@ -613,8 +611,12 @@ impl rend3_framework::App for Rendering {
                     context: data.platform.context(),
                 };
 
-                let view = Mat4::from_quat(data.camera_rotation);
-
+                let mut view = Mat4::IDENTITY;
+                if data.camtype == true {
+                    view = Mat4::from_quat(data.camera_rotation);
+                } else {
+                    view = Mat4::from_quat(data.camera_rotation.inverse());
+                }
                 let view = view * Mat4::from_translation((-data.camera_location).into());
 
                 renderer.set_camera_data(rend3::types::Camera {

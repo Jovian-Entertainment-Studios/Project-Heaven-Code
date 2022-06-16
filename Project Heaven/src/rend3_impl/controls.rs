@@ -98,7 +98,8 @@ pub struct ShipCam {
 
     pub acceleration_max: f32,
     pub acceleration: f32,
-    pub velocity: f32,
+    pub acceleration_vec: Vec3A,
+    pub velocity_vec: Vec3A,
 
     pub delta_time: std::time::Duration,
 
@@ -113,24 +114,13 @@ pub struct ShipCam {
 pub fn ship_cam(
     mut data: ShipCam,
     scancode_status: &FastHashMap<u32, bool>,
-) -> (f32, f32, f32, f32, Quat, Vec3A, Quat, f32) {
+) -> (f32, f32, f32, f32, Quat, Vec3A, Quat, Vec3A, Vec3A) {
     let ship_new_rotation_quaternion = Quat::from_euler(
         glam::EulerRot::YXZ,
         data.ship_yaw,
         data.ship_pitch,
         data.ship_roll,
     );
-
-    /*
-    let mut camera_new_rotation_quaternion = Quat::from_euler(
-        glam::EulerRot::YXZ,
-        -data.ship_yaw,
-        -data.ship_pitch,
-        -data.ship_roll,
-    );
-    */
-
-    //let camera_new_rotation_quaternion = ship_new_rotation_quaternion.inverse();
 
     data.ship_pitch = 0.;
     data.ship_yaw = 0.;
@@ -139,42 +129,18 @@ pub fn ship_cam(
     let old_rot = data.ship_rotation;
 
     data.ship_rotation =
-        Quat::mul_quat(ship_new_rotation_quaternion, data.ship_rotation).normalize();
+        Quat::mul_quat(data.ship_rotation, ship_new_rotation_quaternion).normalize();
 
-    /*
-    data.camera_rotation =
-        Quat::mul_quat(camera_new_rotation_quaternion, data.camera_rotation).normalize();
-    */
+    data.camera_rotation = data.ship_rotation * old_rot.inverse() * data.camera_rotation;
 
-    data.camera_rotation = data.ship_rotation.inverse() * old_rot * data.camera_rotation;
-
-    /*
-    let camera_new_rotation_quaternion =
-        Quat::from_euler(glam::EulerRot::YXZ, data.camera_yaw, data.camera_pitch, 0.);
-
-    data.camera_pitch = 0.;
-    data.camera_yaw = 0.;
-
-    data.camera_relative_rotation = Quat::mul_quat(
-        camera_new_rotation_quaternion,
-        data.camera_relative_rotation,
-    )
-    .normalize();
-
-    data.camera_rotation =
-        Quat::mul_quat(data.camera_relative_rotation, data.ship_rotation.clone()).normalize();
-    */
-
-    //data.camera_rotation = data.ship_rotation;
-
-    data.ship_side = Quat::mul_vec3a(data.ship_rotation.inverse(), Vec3A::X);
-    data.ship_up = Quat::mul_vec3a(data.ship_rotation.inverse(), Vec3A::Y);
-    data.ship_forward = Quat::mul_vec3a(data.ship_rotation.inverse(), Vec3A::Z);
+    data.ship_side = Quat::mul_vec3a(ship_new_rotation_quaternion, Vec3A::X) + data.ship_side;
+    data.ship_up = Quat::mul_vec3a(ship_new_rotation_quaternion, Vec3A::Y) + data.ship_up;
+    data.ship_forward = Quat::mul_vec3a(ship_new_rotation_quaternion, Vec3A::Z) + data.ship_forward;
 
     if button_pressed(scancode_status, platform::Scancodes::PLUS_NUM) {
         data.acceleration = data.acceleration + (0.1 * data.delta_time.as_secs_f32());
-        if data.acceleration > 2. {
-            data.acceleration = 2.;
+        if data.acceleration > data.acceleration_max {
+            data.acceleration = data.acceleration_max;
         }
     }
     if button_pressed(scancode_status, platform::Scancodes::MINUS_NUM) {
@@ -184,29 +150,32 @@ pub fn ship_cam(
         }
     }
 
-    data.velocity = data.velocity + (data.delta_time.as_secs_f32() * data.acceleration);
+    data.acceleration_vec += data.ship_forward * data.acceleration;
+    //This is the one that actually needs to be limited i think, or just don't have an acceleration vec
 
-    data.ship_location += data.ship_forward * data.velocity * data.delta_time.as_secs_f32();
+    data.velocity_vec += data.delta_time.as_secs_f32() * data.acceleration_vec;
+
+    data.ship_location += data.delta_time.as_secs_f32() * data.velocity_vec;
 
     let velocity = 10.;
 
     if button_pressed(scancode_status, platform::Scancodes::W) {
-        data.ship_location += data.ship_forward * velocity * data.delta_time.as_secs_f32();
+        data.velocity_vec += data.ship_forward * velocity * data.delta_time.as_secs_f32();
     }
     if button_pressed(scancode_status, platform::Scancodes::S) {
-        data.ship_location -= data.ship_forward * velocity * data.delta_time.as_secs_f32();
+        data.velocity_vec -= data.ship_forward * velocity * data.delta_time.as_secs_f32();
     }
     if button_pressed(scancode_status, platform::Scancodes::A) {
-        data.ship_location -= data.ship_side * velocity * data.delta_time.as_secs_f32();
+        data.velocity_vec -= data.ship_side * velocity * data.delta_time.as_secs_f32();
     }
     if button_pressed(scancode_status, platform::Scancodes::D) {
-        data.ship_location += data.ship_side * velocity * data.delta_time.as_secs_f32();
+        data.velocity_vec += data.ship_side * velocity * data.delta_time.as_secs_f32();
     }
     if button_pressed(scancode_status, platform::Scancodes::SPACE) {
-        data.ship_location += data.ship_up * velocity * data.delta_time.as_secs_f32();
+        data.velocity_vec += data.ship_up * velocity * data.delta_time.as_secs_f32();
     }
     if button_pressed(scancode_status, platform::Scancodes::COMMA) {
-        data.ship_location -= data.ship_up * velocity * data.delta_time.as_secs_f32();
+        data.velocity_vec -= data.ship_up * velocity * data.delta_time.as_secs_f32();
     }
     if button_pressed(scancode_status, platform::Scancodes::Q) {
         data.ship_roll += 1. * data.delta_time.as_secs_f32();
@@ -235,6 +204,7 @@ pub fn ship_cam(
         data.ship_rotation,
         data.ship_location,
         data.camera_rotation,
-        data.velocity,
+        data.velocity_vec,
+        data.acceleration_vec,
     )
 }
