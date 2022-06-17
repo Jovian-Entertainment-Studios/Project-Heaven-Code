@@ -23,10 +23,14 @@ cfg_if::cfg_if!(
             pub const E: u32 = 0x0E;
             pub const PLUS_NUM: u32 = 0x45;
             pub const MINUS_NUM: u32 = 0x4E;
-            pub const UP: u32 = 0x7E;
-            pub const DOWN: u32 = 0x7D;
-            pub const LEFT: u32 = 0x7B;
-            pub const RIGHT: u32 = 0x7C;
+            pub const UP: u32 = 0x5B;
+            pub const DOWN: u32 = 0x54;
+            pub const LEFT: u32 = 0x56;
+            pub const RIGHT: u32 = 0x58;
+            pub const I: u32 = 0x22;
+            pub const K: u32 = 0x28;
+            pub const J: u32 = 0x26;
+            pub const L: u32 = 0x25;
         }
     } else { /*https://www.win.tue.nl/~aeb/linux/kbd/scancodes-1.html*/
         pub mod Scancodes {
@@ -53,6 +57,10 @@ cfg_if::cfg_if!(
             pub const DOWN: u32 = 0x50;
             pub const LEFT: u32 = 0x4b;
             pub const RIGHT: u32 = 0x4d;
+            pub const I: u32 = 0x17;
+            pub const K: u32 = 0x25;
+            pub const J: u32 = 0x24;
+            pub const L: u32 = 0x26;
         }
     }
 );

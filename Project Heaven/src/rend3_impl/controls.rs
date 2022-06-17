@@ -88,10 +88,6 @@ pub struct ShipCam {
     pub ship_pitch: f32,
     pub ship_roll: f32,
 
-    pub camera_side: Vec3A,
-    pub camera_up: Vec3A,
-    pub camera_forward: Vec3A,
-
     pub ship_side: Vec3A,
     pub ship_up: Vec3A,
     pub ship_forward: Vec3A,
@@ -113,7 +109,7 @@ pub struct ShipCam {
 pub fn ship_cam(
     mut data: ShipCam,
     scancode_status: &FastHashMap<u32, bool>,
-) -> (f32, f32, f32, f32, Quat, Vec3A, Quat, Vec3A) {
+) -> (f32, f32, f32, f32, Quat, Vec3A, Quat, Vec3A, f32, f32) {
     let ship_new_rotation_quaternion = Quat::from_euler(
         glam::EulerRot::YXZ,
         data.ship_yaw,
@@ -125,12 +121,24 @@ pub fn ship_cam(
     data.ship_yaw = 0.;
     data.ship_roll = 0.;
 
+    let camera_relative_new_rotation_quaternion =
+        Quat::from_euler(glam::EulerRot::YXZ, data.camera_yaw, data.camera_pitch, 0.);
+
+    data.camera_yaw = 0.;
+    data.camera_pitch = 0.;
+
     let old_rot = data.ship_rotation;
 
     data.ship_rotation =
         Quat::mul_quat(data.ship_rotation, ship_new_rotation_quaternion).normalize();
 
-    data.camera_rotation = data.ship_rotation * old_rot.inverse() * data.camera_rotation;
+    data.camera_rotation = data.ship_rotation
+        * old_rot.inverse()
+        * Quat::mul_quat(
+            data.camera_rotation,
+            camera_relative_new_rotation_quaternion,
+        )
+        .normalize();
 
     data.ship_side = Quat::mul_vec3a(data.ship_rotation.inverse(), Vec3A::X);
     data.ship_up = Quat::mul_vec3a(data.ship_rotation.inverse(), Vec3A::Y);
@@ -191,6 +199,18 @@ pub fn ship_cam(
     if button_pressed(scancode_status, platform::Scancodes::RIGHT) {
         data.ship_yaw += 1. * data.delta_time.as_secs_f32();
     }
+    if button_pressed(scancode_status, platform::Scancodes::I) {
+        data.camera_pitch -= 1. * data.delta_time.as_secs_f32();
+    }
+    if button_pressed(scancode_status, platform::Scancodes::K) {
+        data.camera_pitch += 1. * data.delta_time.as_secs_f32();
+    }
+    if button_pressed(scancode_status, platform::Scancodes::J) {
+        data.camera_yaw -= 1. * data.delta_time.as_secs_f32();
+    }
+    if button_pressed(scancode_status, platform::Scancodes::L) {
+        data.camera_yaw += 1. * data.delta_time.as_secs_f32();
+    }
 
     (
         data.acceleration,
@@ -201,5 +221,7 @@ pub fn ship_cam(
         data.ship_location,
         data.camera_rotation,
         data.velocity_vec,
+        data.camera_yaw,
+        data.camera_pitch,
     )
 }

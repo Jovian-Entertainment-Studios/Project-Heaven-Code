@@ -52,6 +52,9 @@ struct RenderingData {
     camera_yaw: f32,
     camera_roll: f32,
 
+    camera_pitch_keyboard: f32,
+    camera_yaw_keyboard: f32,
+
     ship_yaw: f32,
     ship_pitch: f32,
     ship_roll: f32,
@@ -373,6 +376,9 @@ impl rend3_framework::App for Rendering {
             camera_yaw: 0.,
             camera_roll: 0.,
 
+            camera_pitch_keyboard: 0.,
+            camera_yaw_keyboard: 0.,
+
             ship_yaw: 0.,
             ship_pitch: 0.,
             ship_roll: 0.,
@@ -493,16 +499,12 @@ impl rend3_framework::App for Rendering {
         } else {
             let cam_data = ship_cam(
                 ShipCam {
-                    camera_yaw: data.camera_yaw,
-                    camera_pitch: data.camera_pitch,
+                    camera_yaw: data.camera_yaw_keyboard,
+                    camera_pitch: data.camera_pitch_keyboard,
 
                     ship_yaw: data.ship_yaw,
                     ship_pitch: data.ship_pitch,
                     ship_roll: data.ship_roll,
-
-                    camera_side: data.side,
-                    camera_up: data.up,
-                    camera_forward: data.forward,
 
                     ship_side: data.ship_side,
                     ship_up: data.ship_up,
@@ -535,6 +537,9 @@ impl rend3_framework::App for Rendering {
             data.ship_location = cam_data.5;
 
             data.rotation = cam_data.6;
+
+            data.camera_yaw_keyboard = cam_data.8;
+            data.camera_pitch_keyboard = cam_data.9;
 
             // Acceleration, velocity and position debug
             /*
