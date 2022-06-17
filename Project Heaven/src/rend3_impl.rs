@@ -76,7 +76,6 @@ struct RenderingData {
     acceleration_max: f32,
     acceleration: f32,
     velocity_vec: Vec3A,
-    acceleration_vec: Vec3A,
 
     camera_location: Vec3A,
     timestamp_last_frame: Instant,
@@ -395,7 +394,6 @@ impl rend3_framework::App for Rendering {
             acceleration_max: 2.,
             acceleration: 0.,
             velocity_vec: Vec3A::ZERO,
-            acceleration_vec: Vec3A::ZERO,
 
             camera_location: Vec3A::ZERO,
             timestamp_last_frame: Instant::now(),
@@ -503,7 +501,6 @@ impl rend3_framework::App for Rendering {
                     acceleration_max: data.acceleration_max,
                     acceleration: data.acceleration,
                     velocity_vec: data.velocity_vec,
-                    acceleration_vec: data.acceleration_vec,
 
                     delta_time,
 
@@ -519,7 +516,6 @@ impl rend3_framework::App for Rendering {
 
             data.acceleration = cam_data.0;
             data.velocity_vec = cam_data.7;
-            data.acceleration_vec = cam_data.8;
 
             data.ship_yaw = cam_data.1;
             data.ship_pitch = cam_data.2;
@@ -532,7 +528,7 @@ impl rend3_framework::App for Rendering {
 
             println!(
                 "{:?}        {:?}          {:?}",
-                data.acceleration_vec, data.velocity_vec, data.ship_location
+                data.acceleration, data.velocity_vec, data.ship_location
             );
 
             data.camera_rotation = data.rotation;

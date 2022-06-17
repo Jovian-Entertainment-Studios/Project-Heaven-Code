@@ -98,7 +98,6 @@ pub struct ShipCam {
 
     pub acceleration_max: f32,
     pub acceleration: f32,
-    pub acceleration_vec: Vec3A,
     pub velocity_vec: Vec3A,
 
     pub delta_time: std::time::Duration,
@@ -114,7 +113,7 @@ pub struct ShipCam {
 pub fn ship_cam(
     mut data: ShipCam,
     scancode_status: &FastHashMap<u32, bool>,
-) -> (f32, f32, f32, f32, Quat, Vec3A, Quat, Vec3A, Vec3A) {
+) -> (f32, f32, f32, f32, Quat, Vec3A, Quat, Vec3A) {
     let ship_new_rotation_quaternion = Quat::from_euler(
         glam::EulerRot::YXZ,
         data.ship_yaw,
@@ -133,9 +132,9 @@ pub fn ship_cam(
 
     data.camera_rotation = data.ship_rotation * old_rot.inverse() * data.camera_rotation;
 
-    data.ship_side = Quat::mul_vec3a(ship_new_rotation_quaternion, Vec3A::X) + data.ship_side;
-    data.ship_up = Quat::mul_vec3a(ship_new_rotation_quaternion, Vec3A::Y) + data.ship_up;
-    data.ship_forward = Quat::mul_vec3a(ship_new_rotation_quaternion, Vec3A::Z) + data.ship_forward;
+    data.ship_side = Quat::mul_vec3a(data.ship_rotation.inverse(), Vec3A::X);
+    data.ship_up = Quat::mul_vec3a(data.ship_rotation.inverse(), Vec3A::Y);
+    data.ship_forward = Quat::mul_vec3a(data.ship_rotation.inverse(), Vec3A::Z);
 
     if button_pressed(scancode_status, platform::Scancodes::PLUS_NUM) {
         data.acceleration = data.acceleration + (0.1 * data.delta_time.as_secs_f32());
@@ -150,10 +149,7 @@ pub fn ship_cam(
         }
     }
 
-    data.acceleration_vec += data.ship_forward * data.acceleration;
-    //This is the one that actually needs to be limited i think, or just don't have an acceleration vec
-
-    data.velocity_vec += data.delta_time.as_secs_f32() * data.acceleration_vec;
+    data.velocity_vec += data.delta_time.as_secs_f32() * data.ship_forward * data.acceleration;
 
     data.ship_location += data.delta_time.as_secs_f32() * data.velocity_vec;
 
@@ -205,6 +201,5 @@ pub fn ship_cam(
         data.ship_location,
         data.camera_rotation,
         data.velocity_vec,
-        data.acceleration_vec,
     )
 }
