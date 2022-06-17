@@ -1,5 +1,5 @@
 use egui::{FontDefinitions, FontFamily};
-use glam::{DVec2, Mat4, Vec3A};
+use glam::{DVec2, Mat4, Quat, Vec3, Vec3A};
 use histogram::Histogram;
 use instant::Instant;
 use rend3::util::typedefs::FastHashMap;
@@ -11,7 +11,9 @@ use winit::event::{ElementState, KeyboardInput, MouseButton};
 mod physics;
 
 mod controls;
+use controls::ship_cam;
 use controls::space_cam;
+use controls::ShipCam;
 use controls::SpaceCam;
 
 mod platform;
@@ -33,6 +35,7 @@ struct StarData {
 
 struct RenderingData {
     _object_handle: std::vec::Vec<rend3::types::ObjectHandle>,
+    _player_handle: rend3::types::ObjectHandle,
     _material_handle: std::vec::Vec<rend3::types::MaterialHandle>,
     player_material_handle: rend3::types::MaterialHandle,
     _directional_handle: rend3::types::DirectionalLightHandle,
@@ -49,24 +52,51 @@ struct RenderingData {
     camera_yaw: f32,
     camera_roll: f32,
 
-    rotation: glam::f32::Quat,
+    camera_pitch_keyboard: f32,
+    camera_yaw_keyboard: f32,
+
+    ship_yaw: f32,
+    ship_pitch: f32,
+    ship_roll: f32,
+
+    rotation: Quat,
+
+    camera_rotation: Quat,
+
+    camera_relative_rotation: Quat,
+
+    ship_location: Vec3A,
+    ship_rotation: Quat,
 
     side: Vec3A,
     up: Vec3A,
     forward: Vec3A,
 
+    ship_side: Vec3A,
+    ship_up: Vec3A,
+    ship_forward: Vec3A,
+
+    acceleration_max: f32,
+    acceleration: f32,
+    velocity_vec: Vec3A,
+
     camera_location: Vec3A,
     timestamp_last_frame: Instant,
     timestamp_last_second: Instant,
     frame_times: Histogram,
+
+    camtype: bool,
+
+    camera_fixture: bool,
+
+    view: Mat4,
 }
 
-const SAMPLE_COUNT: rend3::types::SampleCount = rend3::types::SampleCount::One;
+const SAMPLE_COUNT: rend3::types::SampleCount = rend3::types::SampleCount::Four;
 
 #[derive(Default)]
 pub struct Rendering {
     menu_toggle: bool,
-    gltf_cube_toggle: bool,
     project_heaven_logo: egui::TextureId,
 
     grabber: Option<rend3_framework::Grabber>,
@@ -112,7 +142,7 @@ impl rend3_framework::App for Rendering {
 
         let (player_mesh, _material) = load_gltf(
             renderer,
-            concat!(env!("CARGO_MANIFEST_DIR"), "/src/data/3d/Heaven1.glb"),
+            concat!(env!("CARGO_MANIFEST_DIR"), "/src/data/3d/Heaven1_2.glb"),
         );
 
         let mut star_data: std::vec::Vec<StarData> = vec![];
@@ -126,7 +156,7 @@ impl rend3_framework::App for Rendering {
         // Add PBR material with all defaults except a single color.
         let player_material = rend3_routine::pbr::PbrMaterial {
             albedo: rend3_routine::pbr::AlbedoComponent::Value(glam::Vec4::new(1., 1., 1., 1.)),
-            transparency: rend3_routine::pbr::Transparency::Blend,
+            transparency: rend3_routine::pbr::Transparency::Opaque,
             ..rend3_routine::pbr::PbrMaterial::default()
         };
 
@@ -145,7 +175,7 @@ impl rend3_framework::App for Rendering {
         };
 
         let mut object_vec = Vec::new();
-        object_vec.push(renderer.add_object(player));
+        let _player_handle = renderer.add_object(player);
 
         for i in star_data {
             if i.gmag < 5. {
@@ -183,7 +213,7 @@ impl rend3_framework::App for Rendering {
         // We need to keep the directional light handle alive.
         let _directional_handle = renderer.add_directional_light(rend3::types::DirectionalLight {
             color: glam::Vec3::ONE,
-            intensity: 1.0,
+            intensity: 0.5,
             // Direction will be normalized
             direction: glam::Vec3::new(-1.0, -4.0, 2.0),
             distance: 400.0,
@@ -329,6 +359,7 @@ impl rend3_framework::App for Rendering {
 
         self.data = Some(RenderingData {
             _object_handle: object_vec,
+            _player_handle,
             _material_handle: material_vec,
             player_material_handle,
             _directional_handle,
@@ -345,16 +376,43 @@ impl rend3_framework::App for Rendering {
             camera_yaw: 0.,
             camera_roll: 0.,
 
-            rotation: glam::f32::Quat::IDENTITY,
+            camera_pitch_keyboard: 0.,
+            camera_yaw_keyboard: 0.,
+
+            ship_yaw: 0.,
+            ship_pitch: 0.,
+            ship_roll: 0.,
+
+            rotation: Quat::IDENTITY,
+
+            camera_rotation: Quat::IDENTITY,
+
+            camera_relative_rotation: Quat::IDENTITY,
+
+            ship_location: Vec3A::ZERO,
+            ship_rotation: Quat::IDENTITY,
 
             side: Vec3A::X,
             up: Vec3A::Y,
             forward: Vec3A::Z,
 
-            camera_location: glam::Vec3A::new(3.0, 3.0, -5.0),
+            ship_side: Vec3A::X,
+            ship_up: Vec3A::Y,
+            ship_forward: Vec3A::Z,
+
+            acceleration_max: 2.,
+            acceleration: 0.,
+            velocity_vec: Vec3A::ZERO,
+
+            camera_location: Vec3A::ZERO,
             timestamp_last_frame: Instant::now(),
             timestamp_last_second: Instant::now(),
             frame_times: Histogram::new(),
+
+            camtype: false,
+            camera_fixture: false,
+
+            view: Mat4::IDENTITY,
         })
     }
 
@@ -406,31 +464,115 @@ impl rend3_framework::App for Rendering {
 
         data.timestamp_last_frame = now;
 
-        let cam_data = space_cam(
-            SpaceCam {
-                camera_yaw: data.camera_yaw,
-                camera_pitch: data.camera_pitch,
-                camera_roll: data.camera_roll,
-                rotation: data.rotation,
-                side: data.side,
-                up: data.up,
-                forward: data.forward,
-                run_speed: data.run_speed,
-                walk_speed: data.walk_speed,
-                delta_time,
-                camera_location: data.camera_location,
-            },
-            &self.scancode_status,
-        );
+        if button_pressed(&self.scancode_status, platform::Scancodes::PERIOD) {
+            data.camtype = !data.camtype;
+        }
 
-        data.rotation = cam_data.0;
-        data.camera_location = cam_data.1;
-        data.camera_roll = cam_data.2;
+        if button_pressed(&self.scancode_status, platform::Scancodes::CTRL) {
+            data.camera_fixture = !data.camera_fixture;
+        }
 
-        data.camera_pitch = 0.;
-        data.camera_yaw = 0.;
+        if data.camtype == true {
+            let cam_data = space_cam(
+                SpaceCam {
+                    camera_yaw: data.camera_yaw,
+                    camera_pitch: data.camera_pitch,
+                    camera_roll: data.camera_roll,
+                    rotation: data.camera_rotation,
+                    side: data.side,
+                    up: data.up,
+                    forward: data.forward,
+                    run_speed: data.run_speed,
+                    walk_speed: data.walk_speed,
+                    delta_time,
+                    camera_location: data.camera_location,
+                },
+                &self.scancode_status,
+            );
 
-        
+            data.camera_rotation = cam_data.0;
+            data.camera_location = cam_data.1;
+            data.camera_roll = cam_data.2;
+
+            data.camera_pitch = 0.;
+            data.camera_yaw = 0.;
+        } else {
+            let cam_data = ship_cam(
+                ShipCam {
+                    camera_yaw: data.camera_yaw_keyboard,
+                    camera_pitch: data.camera_pitch_keyboard,
+
+                    ship_yaw: data.ship_yaw,
+                    ship_pitch: data.ship_pitch,
+                    ship_roll: data.ship_roll,
+
+                    ship_side: data.ship_side,
+                    ship_up: data.ship_up,
+                    ship_forward: data.ship_forward,
+
+                    acceleration_max: data.acceleration_max,
+                    acceleration: data.acceleration,
+                    velocity_vec: data.velocity_vec,
+
+                    delta_time,
+
+                    camera_location: data.camera_location,
+                    camera_relative_rotation: data.camera_relative_rotation,
+                    camera_rotation: data.rotation,
+
+                    ship_location: data.ship_location,
+                    ship_rotation: data.ship_rotation,
+                },
+                &self.scancode_status,
+            );
+
+            data.acceleration = cam_data.0;
+            data.velocity_vec = cam_data.7;
+
+            data.ship_yaw = cam_data.1;
+            data.ship_pitch = cam_data.2;
+            data.ship_roll = cam_data.3;
+
+            data.ship_rotation = cam_data.4;
+            data.ship_location = cam_data.5;
+
+            data.rotation = cam_data.6;
+
+            data.camera_yaw_keyboard = cam_data.8;
+            data.camera_pitch_keyboard = cam_data.9;
+
+            // Acceleration, velocity and position debug
+            /*
+            println!(
+                "{:?}        {:?}          {:?}",
+                data.acceleration, data.velocity_vec, data.ship_location
+            );
+            */
+
+            data.camera_rotation = data.rotation;
+
+            if data.camera_fixture == false {
+                data.camera_location = data.ship_location
+                    + Quat::mul_vec3a(data.ship_rotation, Vec3A::new(0., -16.5512, 90.));
+            } else {
+                data.camera_location = data.ship_location
+                    + Quat::mul_vec3a(data.ship_rotation, Vec3A::new(0., 25., -10.));
+            }
+
+            rend3::Renderer::set_object_transform(
+                renderer,
+                &data._player_handle,
+                glam::Mat4::from_scale_rotation_translation(
+                    glam::Vec3::new(1., 1., -1.),
+                    data.ship_rotation,
+                    Vec3::from(data.ship_location),
+                ),
+            );
+
+            data.camera_pitch = 0.;
+            data.camera_yaw = 0.;
+        }
+
         if button_pressed(&self.scancode_status, platform::Scancodes::ESCAPE) {
             self.grabber.as_mut().unwrap().request_ungrab(window);
         }
@@ -452,8 +594,8 @@ impl rend3_framework::App for Rendering {
                             .resizable(false)
                             .anchor(egui::Align2::LEFT_TOP, [3.0, 30.0])
                             .show(&ctx, |ui| {
-                                if ui.add(egui::Button::new("GLTF/Cube")).clicked() {
-                                    self.gltf_cube_toggle = !self.gltf_cube_toggle;
+                                if ui.add(egui::Button::new("Camera fixture")).clicked() {
+                                    data.camera_fixture = !data.camera_fixture;
                                 }
                                 if ui.add(egui::Button::new("exit")).clicked() {
                                     std::process::exit(1);
@@ -488,16 +630,19 @@ impl rend3_framework::App for Rendering {
                     context: data.platform.context(),
                 };
 
-                let view = Mat4::from_quat(data.rotation);
-
-                let view = view * Mat4::from_translation((-data.camera_location).into());
+                if data.camtype == true {
+                    data.view = Mat4::from_quat(data.camera_rotation);
+                } else {
+                    data.view = Mat4::from_quat(data.camera_rotation.inverse());
+                }
+                data.view = data.view * Mat4::from_translation((-data.camera_location).into());
 
                 renderer.set_camera_data(rend3::types::Camera {
                     projection: rend3::types::CameraProjection::Perspective {
                         vfov: 60.0,
                         near: 0.1,
                     },
-                    view,
+                    view: data.view,
                 });
 
                 // Get a frame
@@ -524,7 +669,7 @@ impl rend3_framework::App for Rendering {
                     &tonemapping_routine,
                     resolution,
                     SAMPLE_COUNT,
-                    glam::Vec4::splat(0.1),
+                    glam::Vec4::splat(0.),
                 );
 
                 // Add egui on top of all the other passes

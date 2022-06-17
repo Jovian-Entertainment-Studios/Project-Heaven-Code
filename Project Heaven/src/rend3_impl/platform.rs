@@ -21,26 +21,16 @@ cfg_if::cfg_if!(
             pub const SPACE: u32 = 0x31;
             pub const CTRL: u32 = 0x3B;
             pub const E: u32 = 0x0E;
-        }
-    } else if #[cfg(target_arch = "wasm32")] {
-        pub mod Scancodes {
-            pub const W: u32 = 0x57;
-            pub const A: u32 = 0x41;
-            pub const S: u32 = 0x53;
-            pub const D: u32 = 0x44;
-            pub const Q: u32 = 0x51;
-            pub const Z: u32 = 0x5a;
-            pub const P: u32 = 0x50;
-            pub const SEMICOLON: u32 = 0xba;
-            pub const QUOTE: u32 = 0xde;
-            pub const COMMA: u32 = 0xbc;
-            pub const PERIOD: u32 = 0xbe;
-            pub const SHIFT: u32 = 0x10;
-            pub const ESCAPE: u32 = 0x1b;
-            pub const LALT: u32 = 0x12;
-            pub const SPACE: u32 = 0x20;
-            pub const CTRL: u32 = 0x11;
-            pub const E: u32 = 0x45;
+            pub const PLUS_NUM: u32 = 0x45;
+            pub const MINUS_NUM: u32 = 0x4E;
+            pub const UP: u32 = 0x5B;
+            pub const DOWN: u32 = 0x54;
+            pub const LEFT: u32 = 0x56;
+            pub const RIGHT: u32 = 0x58;
+            pub const I: u32 = 0x22;
+            pub const K: u32 = 0x28;
+            pub const J: u32 = 0x26;
+            pub const L: u32 = 0x25;
         }
     } else { /*https://www.win.tue.nl/~aeb/linux/kbd/scancodes-1.html*/
         pub mod Scancodes {
@@ -61,6 +51,16 @@ cfg_if::cfg_if!(
             pub const SPACE: u32 = 0x39;
             pub const CTRL: u32 = 0x1D;
             pub const E: u32 = 0x12;
+            pub const PLUS_NUM: u32 = 0x4e;
+            pub const MINUS_NUM: u32 = 0x4a;
+            pub const UP: u32 = 0x48;
+            pub const DOWN: u32 = 0x50;
+            pub const LEFT: u32 = 0x4b;
+            pub const RIGHT: u32 = 0x4d;
+            pub const I: u32 = 0x17;
+            pub const K: u32 = 0x25;
+            pub const J: u32 = 0x24;
+            pub const L: u32 = 0x26;
         }
     }
 );
