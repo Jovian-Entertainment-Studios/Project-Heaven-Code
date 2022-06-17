@@ -83,6 +83,10 @@ struct RenderingData {
     frame_times: Histogram,
 
     camtype: bool,
+
+    camera_fixture: bool,
+
+    view: Mat4,
 }
 
 const SAMPLE_COUNT: rend3::types::SampleCount = rend3::types::SampleCount::Four;
@@ -90,7 +94,6 @@ const SAMPLE_COUNT: rend3::types::SampleCount = rend3::types::SampleCount::Four;
 #[derive(Default)]
 pub struct Rendering {
     menu_toggle: bool,
-    gltf_cube_toggle: bool,
     project_heaven_logo: egui::TextureId,
 
     grabber: Option<rend3_framework::Grabber>,
@@ -401,6 +404,9 @@ impl rend3_framework::App for Rendering {
             frame_times: Histogram::new(),
 
             camtype: false,
+            camera_fixture: false,
+
+            view: Mat4::IDENTITY,
         })
     }
 
@@ -454,6 +460,10 @@ impl rend3_framework::App for Rendering {
 
         if button_pressed(&self.scancode_status, platform::Scancodes::PERIOD) {
             data.camtype = !data.camtype;
+        }
+
+        if button_pressed(&self.scancode_status, platform::Scancodes::CTRL) {
+            data.camera_fixture = !data.camera_fixture;
         }
 
         if data.camtype == true {
@@ -526,15 +536,23 @@ impl rend3_framework::App for Rendering {
 
             data.rotation = cam_data.6;
 
+            // Acceleration, velocity and position debug
+            /*
             println!(
                 "{:?}        {:?}          {:?}",
                 data.acceleration, data.velocity_vec, data.ship_location
             );
+            */
 
             data.camera_rotation = data.rotation;
 
-            data.camera_location = data.ship_location
-                + Quat::mul_vec3a(data.ship_rotation, Vec3A::new(0., -16.5512, 90.));
+            if data.camera_fixture == false {
+                data.camera_location = data.ship_location
+                    + Quat::mul_vec3a(data.ship_rotation, Vec3A::new(0., -16.5512, 90.));
+            } else {
+                data.camera_location = data.ship_location
+                    + Quat::mul_vec3a(data.ship_rotation, Vec3A::new(0., 25., -10.));
+            }
 
             rend3::Renderer::set_object_transform(
                 renderer,
@@ -571,8 +589,8 @@ impl rend3_framework::App for Rendering {
                             .resizable(false)
                             .anchor(egui::Align2::LEFT_TOP, [3.0, 30.0])
                             .show(&ctx, |ui| {
-                                if ui.add(egui::Button::new("GLTF/Cube")).clicked() {
-                                    self.gltf_cube_toggle = !self.gltf_cube_toggle;
+                                if ui.add(egui::Button::new("Camera fixture")).clicked() {
+                                    data.camera_fixture = !data.camera_fixture;
                                 }
                                 if ui.add(egui::Button::new("exit")).clicked() {
                                     std::process::exit(1);
@@ -607,20 +625,19 @@ impl rend3_framework::App for Rendering {
                     context: data.platform.context(),
                 };
 
-                let mut view = Mat4::IDENTITY;
                 if data.camtype == true {
-                    view = Mat4::from_quat(data.camera_rotation);
+                    data.view = Mat4::from_quat(data.camera_rotation);
                 } else {
-                    view = Mat4::from_quat(data.camera_rotation.inverse());
+                    data.view = Mat4::from_quat(data.camera_rotation.inverse());
                 }
-                let view = view * Mat4::from_translation((-data.camera_location).into());
+                data.view = data.view * Mat4::from_translation((-data.camera_location).into());
 
                 renderer.set_camera_data(rend3::types::Camera {
                     projection: rend3::types::CameraProjection::Perspective {
                         vfov: 60.0,
                         near: 0.1,
                     },
-                    view,
+                    view: data.view,
                 });
 
                 // Get a frame
