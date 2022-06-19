@@ -140,9 +140,9 @@ pub fn ship_cam(
         )
         .normalize();
 
-    data.ship_side = Quat::mul_vec3a(data.ship_rotation.inverse(), Vec3A::X);
-    data.ship_up = Quat::mul_vec3a(data.ship_rotation.inverse(), Vec3A::Y);
-    data.ship_forward = Quat::mul_vec3a(data.ship_rotation.inverse(), Vec3A::Z);
+    data.ship_side = Quat::mul_vec3a(data.ship_rotation, Vec3A::X);
+    data.ship_up = Quat::mul_vec3a(data.ship_rotation, Vec3A::Y);
+    data.ship_forward = Quat::mul_vec3a(data.ship_rotation, Vec3A::Z);
 
     if button_pressed(scancode_status, platform::Scancodes::PLUS_NUM) {
         data.acceleration = data.acceleration + (0.1 * data.delta_time.as_secs_f32());

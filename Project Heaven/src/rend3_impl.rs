@@ -34,6 +34,9 @@ struct StarData {
 }
 
 struct RenderingData {
+    _station_handle: rend3::types::ObjectHandle,
+    _station_material_handle: rend3::types::MaterialHandle,
+
     _object_handle: std::vec::Vec<rend3::types::ObjectHandle>,
     _player_handle: rend3::types::ObjectHandle,
     _material_handle: std::vec::Vec<rend3::types::MaterialHandle>,
@@ -87,7 +90,7 @@ struct RenderingData {
 
     camtype: bool,
 
-    camera_fixture: bool,
+    camera_fixture: u32,
 
     view: Mat4,
 }
@@ -145,6 +148,11 @@ impl rend3_framework::App for Rendering {
             concat!(env!("CARGO_MANIFEST_DIR"), "/src/data/3d/Heaven1_2.glb"),
         );
 
+        let (station_mesh, _station_material_handle) = load_gltf(
+            renderer,
+            concat!(env!("CARGO_MANIFEST_DIR"), "/src/data/3d/Stardrifter.glb"),
+        );
+
         let mut star_data: std::vec::Vec<StarData> = vec![];
         match spv_rs::input_data::parse_csv("src/data/stars/edr3_10gmag.csv", true, b',', b'\n') {
             Ok(vec) => star_data = vec,
@@ -174,8 +182,20 @@ impl rend3_framework::App for Rendering {
             ),
         };
 
+        let station = rend3::types::Object {
+            mesh_kind: rend3::types::ObjectMeshKind::Static(station_mesh),
+            material: _station_material_handle.clone(),
+            transform: glam::Mat4::from_scale_rotation_translation(
+                glam::Vec3::new(2., 2., -2.),
+                rend3::types::glam::Quat::IDENTITY,
+                glam::Vec3::new(0.0, 0.0, 0.0),
+            ),
+        };
+
         let mut object_vec = Vec::new();
         let _player_handle = renderer.add_object(player);
+
+        let _station_handle = renderer.add_object(station);
 
         for i in star_data {
             if i.gmag < 5. {
@@ -212,11 +232,11 @@ impl rend3_framework::App for Rendering {
         //
         // We need to keep the directional light handle alive.
         let _directional_handle = renderer.add_directional_light(rend3::types::DirectionalLight {
-            color: glam::Vec3::ONE,
-            intensity: 0.5,
+            color: glam::Vec3::new(0.95, 0.9, 0.6),
+            intensity: 5.,
             // Direction will be normalized
             direction: glam::Vec3::new(-1.0, -4.0, 2.0),
-            distance: 400.0,
+            distance: 4000.0,
         });
 
         let mut style: egui::Style = Default::default();
@@ -358,6 +378,8 @@ impl rend3_framework::App for Rendering {
         let color: [f32; 4] = [0.0, 0.5, 0.5, 1.0];
 
         self.data = Some(RenderingData {
+            _station_handle,
+            _station_material_handle,
             _object_handle: object_vec,
             _player_handle,
             _material_handle: material_vec,
@@ -410,7 +432,7 @@ impl rend3_framework::App for Rendering {
             frame_times: Histogram::new(),
 
             camtype: false,
-            camera_fixture: false,
+            camera_fixture: 0,
 
             view: Mat4::IDENTITY,
         })
@@ -469,7 +491,7 @@ impl rend3_framework::App for Rendering {
         }
 
         if button_pressed(&self.scancode_status, platform::Scancodes::CTRL) {
-            data.camera_fixture = !data.camera_fixture;
+            data.camera_fixture = (1 + data.camera_fixture) % 2;
         }
 
         if data.camtype == true {
@@ -551,7 +573,7 @@ impl rend3_framework::App for Rendering {
 
             data.camera_rotation = data.rotation;
 
-            if data.camera_fixture == false {
+            if data.camera_fixture == 0 {
                 data.camera_location = data.ship_location
                     + Quat::mul_vec3a(data.ship_rotation, Vec3A::new(0., -16.5512, 90.));
             } else {
