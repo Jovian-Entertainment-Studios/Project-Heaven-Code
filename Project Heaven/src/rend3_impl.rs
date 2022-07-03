@@ -198,7 +198,7 @@ impl rend3_framework::App for Rendering {
         let _station_handle = renderer.add_object(station);
 
         for i in star_data {
-            if i.gmag < 5. {
+            if i.gmag < 7. {
                 let star_material = rend3_routine::pbr::PbrMaterial {
                     albedo: rend3_routine::pbr::AlbedoComponent::Value(glam::Vec4::new(
                         1.0, 1.0, 1.0, 1.0,

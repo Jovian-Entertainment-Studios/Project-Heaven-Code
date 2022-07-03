@@ -18,10 +18,10 @@ egui_winit_platform = "0.13.0"
 env_logger = { version = "0.9", default-features = false, features = ["termcolor", "atty"] }
 glam = "0.20.0"
 instant = { version = "0.1", features = ["wasm-bindgen"] }
-rend3 = "0.3.0"
+rend3 = "^0.3.0"
 rend3-egui = { version = "^0.3.0", path = "src/rend3-egui"}
-rend3-framework = "0.3.0"
-rend3-routine = "0.3.0"
+rend3-framework = "^0.3.0"
+rend3-routine = "^0.3.0"
 winit = "0.26"
 gltf = { version = "1.0", default-features = false, features = ["import", "utils"] }
 serde = "1.0.130"
