@@ -16,7 +16,7 @@ use controls::space_cam;
 use controls::ShipCam;
 use controls::SpaceCam;
 
-mod platform;
+use controls::platform;
 
 mod mesh_importer;
 use mesh_importer::load_gltf;

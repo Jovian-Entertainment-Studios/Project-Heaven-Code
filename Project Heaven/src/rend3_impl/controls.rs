@@ -2,7 +2,7 @@ use glam::f32::{Quat, Vec3A};
 use rend3::util::typedefs::FastHashMap;
 use std::{collections::HashMap, hash::BuildHasher};
 
-mod platform;
+pub mod platform;
 
 fn button_pressed<Hash: BuildHasher>(map: &HashMap<u32, bool, Hash>, key: u32) -> bool {
     map.get(&key).map_or(false, |b| *b)
